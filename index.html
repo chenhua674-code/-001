@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>鬼新娘 - 弹射射击</title>
+<style>
+body { margin: 0; overflow: hidden; background: #000; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; touch-action: none; -webkit-user-select: none; }
+canvas { display: block; background: #1a0a2e; }
+#ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui"></div>
+
+<script>
+var canvas = document.getElementById('game');
+var ctx = canvas.getContext('2d');
+var W, H;
+var frameCount = 0;
+
+function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    if (player) {
+        player.y = H - 120;
+        player.x = W / 2;
+    }
+    if (dragon) {
+        dragon.initSegments();
+    }
+    if (ball) {
+        resetBall();
+    }
+}
+window.addEventListener('resize', resize);
+resize();
+
+// 玩家（固定在底部）
+var player = {
+    x: W / 2,
+    y: H - 120,
+    radius: 35,
+    angle: 90
+};
+
+// 弹射球
+var ball = {
+    x: 0, y: 0,
+    vx: 0, vy: 0,
+    radius: 12,
+    active: false,
+    speed: 9,
+    moving: false,
+    trail: [],
+    damage: 50,
+    hitCooldown: 0
+};
+
+// 触摸状态
+var touch = {
+    startX: 0, startY: 0,
+    currentX: 0, currentY: 0,
+    active: false,
+    aimAngle: 90,
+    aimPower: 0
+};
+
+// 龙 BOSS
+var dragon = {
+    segments: [],
+    segmentCount: 12,
+    segmentRadius: 20,
+    headRadius: 28,
+    hp: 3000,
+    maxHp: 3000,
+    headX: W / 2,
+    headY: 180,
+    speed: 1.5,
+    amplitude: 160,
+    frequency: 0.02,
+    time: 0,
+    
+    initSegments: function() {
+        this.segments = [];
+        for (var i = 0; i < this.segmentCount; i++) {
+            this.segments.push({ x: this.headX, y: this.headY - i * 15, radius: this.segmentRadius });
+        }
+    },
+    
+    update: function() {
+        this.time++;
+        this.headY += this.speed;
+        
+        // S 型摆动
+        this.headX = W / 2 + Math.sin(this.time * this.frequency) * this.amplitude;
+        
+        // 边界限制
+        if (this.headX < 40) this.headX = 40;
+        if (this.headX > W - 40) this.headX = W - 40;
+        
+        // 头部碰撞下边界反弹
+        if (this.headY > H * 0.55) {
+            this.speed = -Math.abs(this.speed);
+            spawnParticles(this.headX, this.headY, '#44ff44', 10);
+        }
+        if (this.headY < 60) {
+            this.speed = Math.abs(this.speed);
+            spawnParticles(this.headX, this.headY, '#44ff44', 10);
+        }
+        
+        // 身体跟随头部
+        var lastX = this.headX;
+        var lastY = this.headY;
+        
+        for (var i = 0; i < this.segments.length; i++) {
+            var seg = this.segments[i];
+            var dx = lastX - seg.x;
+            var dy = lastY - seg.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            var spacing = 15;
+            
+            if (dist > spacing) {
+                seg.x = lastX - (dx / dist) * spacing;
+                seg.y = lastY - (dy / dist) * spacing;
+            }
+            
+            lastX = seg.x;
+            lastY = seg.y;
+        }
+    },
+    
+    draw: function() {
+        // 绘制身体（从尾到头）
+        for (var i = this.segments.length - 1; i >= 0; i--) {
+            var seg = this.segments[i];
+            var r = seg.radius * (1 - i * 0.02); // 渐细
+            
+            // 身体段
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
+            var segGrad = ctx.createRadialGradient(seg.x - 3, seg.y - 3, 2, seg.x, seg.y, r);
+            segGrad.addColorStop(0, '#aaffaa');
+            segGrad.addColorStop(0.5, '#44cc44');
+            segGrad.addColorStop(1, '#226622');
+            ctx.fillStyle = segGrad;
+            ctx.fill();
+            ctx.strokeStyle = '#004400';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        // 绘制头部
+        ctx.beginPath();
+        ctx.arc(this.headX, this.headY, this.headRadius, 0, Math.PI * 2);
+        var headGrad = ctx.createRadialGradient(this.headX - 5, this.headY - 5, 5, this.headX, this.headY, this.headRadius);
+        headGrad.addColorStop(0, '#ffcc00');
+        headGrad.addColorStop(0.5, '#ff4400');
+        headGrad.addColorStop(1, '#880000');
+        ctx.fillStyle = headGrad;
+        ctx.fill();
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // 龙角
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(this.headX - 10, this.headY - this.headRadius + 5);
+        ctx.lineTo(this.headX - 20, this.headY - this.headRadius - 15);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(this.headX + 10, this.headY - this.headRadius + 5);
+        ctx.lineTo(this.headX + 20, this.headY - this.headRadius - 15);
+        ctx.stroke();
+        
+        // 眼睛
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.headX - 10, this.headY - 5, 6, 0, Math.PI * 2);
+        ctx.arc(this.headX + 10, this.headY - 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(this.headX - 10, this.headY - 5, 2, 0, Math.PI * 2);
+        ctx.arc(this.headX + 10, this.headY - 5, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 嘴巴
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(this.headX, this.headY + 8, 10, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        
+        // 牙齿
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(this.headX - 8, this.headY + 8);
+        ctx.lineTo(this.headX - 6, this.headY + 14);
+        ctx.lineTo(this.headX - 4, this.headY + 8);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(this.headX + 8, this.headY + 8);
+        ctx.lineTo(this.headX + 6, this.headY + 14);
+        ctx.lineTo(this.headX + 4, this.headY + 8);
+        ctx.fill();
+    },
+    
+    checkBallCollision: function() {
+        if (!ball.moving || ball.hitCooldown > 0) return false;
+        
+        // 检查头部
+        var dx = ball.x - this.headX;
+        var dy = ball.y - this.headY;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < this.headRadius + ball.radius) {
+            this.hitHead();
+            return true;
+        }
+        
+        // 检查身体段
+        for (var i = 0; i < this.segments.length; i++) {
+            var seg = this.segments[i];
+            dx = ball.x - seg.x;
+            dy = ball.y - seg.y;
+            dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < seg.radius + ball.radius) {
+                this.hitSegment(seg.x, seg.y);
+                return true;
+            }
+        }
+        return false;
+    },
+    
+    hitHead: function() {
+        this.takeDamage(ball.damage * 1.5, this.headX, this.headY - 30);
+        this.reflectBall(this.headX, this.headY);
+    },
+    
+    hitSegment: function(x, y) {
+        this.takeDamage(ball.damage, x, y - 20);
+        this.reflectBall(x, y);
+    },
+    
+    takeDamage: function(dmg, x, y) {
+        this.hp = Math.max(0, this.hp - dmg);
+        spawnDamageNumber(x, y, Math.floor(dmg));
+        spawnParticles(x, y, '#ffcc00', 8);
+    },
+    
+    reflectBall: function(cx, cy) {
+        // 简单的反弹：反转朝向龙的方向
+        var dx = ball.x - cx;
+        var dy = ball.y - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        ball.vx = (dx / dist) * Math.abs(ball.vx) * 0.9;
+        ball.vy = (dy / dist) * Math.abs(ball.vy) * 0.9;
+        ball.hitCooldown = 5; // 防止连续碰撞
+    }
+};
+
+dragon.initSegments();
+
+function resetBall() {
+    ball.x = player.x;
+    ball.y = player.y - 20;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.active = false;
+    ball.moving = false;
+    ball.trail = [];
+    ball.hitCooldown = 0;
+}
+
+// 伤害数字
+var damageNums = [];
+function spawnDamageNumber(x, y, value) {
+    damageNums.push({
+        x: x, y: y, val: value, life: 40,
+        vy: -2, size: 20, color: '#ffcc00'
+    });
+}
+
+// 输入处理
+canvas.addEventListener('touchstart', onTouchStart, {passive: false});
+canvas.addEventListener('touchmove', onTouchMove, {passive: false});
+canvas.addEventListener('touchend', onTouchEnd, {passive: false});
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mousemove', onMouseMove);
+canvas.addEventListener('mouseup', onMouseUp);
+
+function onTouchStart(e) {
+    e.preventDefault();
+    if (ball.moving) return;
+    var t = e.touches[0];
+    touch.startX = t.clientX;
+    touch.startY = t.clientY;
+    touch.currentX = t.clientX;
+    touch.currentY = t.clientY;
+    touch.active = true;
+}
+
+function onTouchMove(e) {
+    e.preventDefault();
+    if (!touch.active) return;
+    var t = e.touches[0];
+    touch.currentX = t.clientX;
+    touch.currentY = t.clientY;
+    updateAim();
+}
+
+function onTouchEnd(e) {
+    e.preventDefault();
+    if (!touch.active) return;
+    touch.active = false;
+    if (touch.aimPower > 20) {
+        shootBall();
+    }
+}
+
+function onMouseDown(e) {
+    if (ball.moving) return;
+    touch.startX = e.clientX;
+    touch.startY = e.clientY;
+    touch.currentX = e.clientX;
+    touch.currentY = e.clientY;
+    touch.active = true;
+}
+
+function onMouseMove(e) {
+    if (!touch.active) return;
+    touch.currentX = e.clientX;
+    touch.currentY = e.clientY;
+    updateAim();
+}
+
+function onMouseUp(e) {
+    if (!touch.active) return;
+    touch.active = false;
+    if (touch.aimPower > 20) {
+        shootBall();
+    }
+}
+
+function updateAim() {
+    var dx = touch.currentX - touch.startX;
+    var dy = touch.currentY - touch.startY;
+    var angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    touch.aimAngle = angle;
+    touch.aimPower = Math.sqrt(dx * dx + dy * dy);
+}
+
+function shootBall() {
+    ball.active = true;
+    ball.moving = true;
+    var angle = touch.aimAngle * Math.PI / 180;
+    var power = Math.min(touch.aimPower / 25, 1) * ball.speed;
+    ball.vx = Math.cos(angle) * power;
+    ball.vy = Math.sin(angle) * power;
+    ball.x = player.x;
+    ball.y = player.y - 20;
+    ball.trail = [];
+}
+
+// 碰撞检测（墙壁反弹）
+function wallCollision() {
+    var leftWall = 20;
+    var rightWall = W - 20;
+    var topWall = 20;
+
+    if (ball.x - ball.radius < leftWall) {
+        ball.x = leftWall + ball.radius;
+        ball.vx = Math.abs(ball.vx) * 0.9;
+        spawnParticles(ball.x, ball.y, '#8b5cf6', 5);
+    }
+    if (ball.x + ball.radius > rightWall) {
+        ball.x = rightWall - ball.radius;
+        ball.vx = -Math.abs(ball.vx) * 0.9;
+        spawnParticles(ball.x, ball.y, '#8b5cf6', 5);
+    }
+    if (ball.y - ball.radius < topWall) {
+        ball.y = topWall + ball.radius;
+        ball.vy = Math.abs(ball.vy) * 0.9;
+        spawnParticles(ball.x, ball.y, '#8b5cf6', 5);
+    }
+    if (ball.y > player.y + player.radius + 20) {
+        ball.moving = false;
+        setTimeout(resetBall, 500);
+    }
+}
+
+// 粒子系统
+var particles = [];
+function spawnParticles(x, y, color, count) {
+    for (var i = 0; i < count; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 20 + Math.random() * 15,
+            color: color,
+            size: 2 + Math.random() * 4
+        });
+    }
+}
+
+function updateParticles() {
+    for (var i = particles.length - 1; i >= 0; i--) {
+        var p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    
+    for (var i = damageNums.length - 1; i >= 0; i--) {
+        var d = damageNums[i];
+        d.y += d.vy;
+        d.life--;
+        if (d.life <= 0) damageNums.splice(i, 1);
+    }
+}
+
+// 绘制函数
+function drawWalls() {
+    ctx.fillStyle = '#2a0e4e';
+    ctx.fillRect(0, 0, 20, H);
+    ctx.fillRect(W - 20, 0, 20, H);
+    ctx.fillRect(0, 0, W, 20);
+    
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(20, 20); ctx.lineTo(20, H); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(W - 20, 20); ctx.lineTo(W - 20, H); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(20, 20); ctx.lineTo(W - 20, 20); ctx.stroke();
+}
+
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+
+    var bodyGrad = ctx.createRadialGradient(0, -10, 5, 0, 0, player.radius);
+    bodyGrad.addColorStop(0, '#ffffff');
+    bodyGrad.addColorStop(0.3, '#ff7eb3');
+    bodyGrad.addColorStop(0.7, '#7b2ff7');
+    bodyGrad.addColorStop(1, 'rgba(123, 47, 247, 0.1)');
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#ff7eb3';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(-10, -5, 5, 0, Math.PI * 2);
+    ctx.arc(10, -5, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 5, 8, 0, Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawBall() {
+    if (!ball.active && !ball.moving) {
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff6b6b';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        return;
+    }
+
+    ctx.beginPath();
+    for (var i = 0; i < ball.trail.length; i++) {
+        var t = ball.trail[i];
+        if (i === 0) ctx.moveTo(t.x, t.y);
+        else ctx.lineTo(t.x, t.y);
+    }
+    ctx.strokeStyle = 'rgba(255, 107, 107, 0.5)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    var ballGrad = ctx.createRadialGradient(-3, -3, 2, 0, 0, ball.radius);
+    ballGrad.addColorStop(0, '#fff');
+    ballGrad.addColorStop(0.5, '#ff6b6b');
+    ballGrad.addColorStop(1, '#cc4444');
+    ctx.fillStyle = ballGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function drawAimLine() {
+    if (!touch.active || ball.moving) return;
+    ctx.save();
+    ctx.translate(player.x, player.y - 20);
+    ctx.rotate(touch.aimAngle * Math.PI / 180);
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(150, 0);
+    ctx.strokeStyle = 'rgba(255, 255, 100, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+}
+
+function drawParticles() {
+    for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        ctx.globalAlpha = p.life / 35;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    
+    for (var i = 0; i < damageNums.length; i++) {
+        var d = damageNums[i];
+        ctx.globalAlpha = d.life / 40;
+        ctx.fillStyle = d.color;
+        ctx.font = 'bold ' + d.size + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(d.val, d.x, d.y);
+        ctx.globalAlpha = 1;
+    }
+}
+
+function drawDragonArea() {
+    var hpWidth = W * 0.6;
+    var hpHeight = 14;
+    var hpX = W / 2 - hpWidth / 2;
+    var hpY = 35;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(hpX, hpY, hpWidth, hpHeight);
+    ctx.fillStyle = dragon.hp > dragon.maxHp * 0.3 ? '#ff4444' : '#ff0000';
+    ctx.fillRect(hpX, hpY, hpWidth * (dragon.hp / dragon.maxHp), hpHeight);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(hpX, hpY, hpWidth, hpHeight);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🐉 变异病毒长龙', W / 2, hpY - 8);
+    ctx.font = '12px sans-serif';
+    ctx.fillText(Math.floor(dragon.hp) + ' / ' + dragon.maxHp, W / 2, hpY + hpHeight + 15);
+}
+
+// 更新逻辑
+function update() {
+    frameCount++;
+    dragon.update();
+    
+    if (ball.moving) {
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+        
+        ball.trail.push({x: ball.x, y: ball.y});
+        if (ball.trail.length > 30) ball.trail.shift();
+        
+        if (ball.hitCooldown > 0) ball.hitCooldown--;
+        
+        if (dragon.checkBallCollision()) {
+            // handled in collision
+        }
+        
+        wallCollision();
+    }
+
+    updateParticles();
+    
+    if (dragon.hp <= 0) {
+        spawnParticles(dragon.headX, dragon.headY, '#ff0000', 50);
+        dragon.hp = 0;
+        dragon.speed *= -1; // 反弹
+    }
+}
+
+// 绘制
+function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    var bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#0f0526');
+    bgGrad.addColorStop(0.5, '#1a0a2e');
+    bgGrad.addColorStop(1, '#2a1040');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    drawWalls();
+    drawDragonArea();
+    dragon.draw();
+    drawAimLine();
+    drawBall();
+    drawPlayer();
+    drawParticles();
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+resetBall();
+loop();
+</script>
+</body>
+</html>
