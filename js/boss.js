@@ -1,0 +1,253 @@
+// ==================== 蛇BOSS boss.js ====================
+(function() {
+    var G = window.G;
+
+    // 蛇路线配置 - 每关不同走位
+    var ROUTES = [
+        // 关卡1：宽S型，缓慢
+        { speed: 0.8, amplitude: 150, frequency: 0.015, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡2：窄S型，中等速度
+        { speed: 1.0, amplitude: 100, frequency: 0.025, phaseShift: Math.PI, minY: 60, maxY: null },
+        // 关卡3：大振幅，快速
+        { speed: 1.2, amplitude: 200, frequency: 0.02, phaseShift: Math.PI / 2, minY: 100, maxY: null },
+        // 关卡4：高频小振幅
+        { speed: 1.0, amplitude: 80, frequency: 0.04, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡5：超大振幅慢速
+        { speed: 0.7, amplitude: 250, frequency: 0.012, phaseShift: Math.PI / 3, minY: 60, maxY: null },
+    ];
+
+    var currentRoute = 0;
+    var bossLevel = 0;
+
+    function getRoute(level) {
+        return ROUTES[level % ROUTES.length];
+    }
+
+    function SnakeBoss(level) {
+        level = level || 0;
+        bossLevel = level;
+        var route = getRoute(level);
+        currentRoute = level;
+
+        this.segments = [];
+        this.segmentCount = 100;
+        this.segHp = (level + 1) * 20; // 关1=20, 关2=40, 关3=60...
+        this.maxHp = this.segHp * this.segmentCount;
+        this.headX = G.W / 2;
+        this.headY = -100;
+        this.speed = route.speed;
+        this.radius = 25;
+        this.amplitude = 250; // 加大S型幅度，明显走S
+        this.frequency = 0.012; // 减缓S型频率
+        this.phaseShift = route.phaseShift;
+        this.collisionCooldown = 0;
+        this.minY = route.minY;
+        this.defenseLineY = G.defenseLineY || G.H * 0.75;
+
+        for (var i = 0; i < this.segmentCount; i++) {
+            this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
+        }
+    }
+
+    SnakeBoss.prototype.update = function() {
+        this.headY += this.speed;
+        // 宽S型走位 = headY驱动正弦波 + 时间偏移
+        this.headX = G.W / 2 + Math.sin(
+            this.headY * this.frequency + G.time * 0.015 + this.phaseShift
+        ) * this.amplitude;
+
+        // 左右边界
+        if (this.headX < this.radius) this.headX = this.radius;
+        if (this.headX > G.W - this.radius) this.headX = G.W - this.radius;
+
+        // 上边界反弹
+        if (this.headY < this.minY) {
+            this.speed = Math.abs(this.speed);
+        }
+
+        // 失败判定：蛇头越过防守线
+        if (this.headY > this.defenseLineY) {
+            G.gameOver();
+            return;
+        }
+
+        // 身体跟随（每段保持自己的HP，不重新分配）
+        var segSpacing = this.radius * 2.8;
+        var targetX = this.headX;
+        var targetY = this.headY;
+        
+        for (var k = 0; k < this.segments.length; k++) {
+            var seg = this.segments[k];
+            var dx = targetX - seg.x;
+            var dy = targetY - seg.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > segSpacing) {
+                seg.x = targetX - (dx / dist) * segSpacing;
+                seg.y = targetY - (dy / dist) * segSpacing;
+            }
+            targetX = seg.x;
+            targetY = seg.y;
+        }
+
+        // 碰撞玩家（冷却避免叠伤）
+        if (this.headY > G.player.y - 50 && G.player && this.collisionCooldown <= 0) {
+            var d = Math.sqrt(
+                (this.headX - G.player.x) * (this.headX - G.player.x) +
+                (this.headY - G.player.y) * (this.headY - G.player.y)
+            );
+            if (d < this.radius + G.player.radius) {
+                G.player.hp -= 100;
+                this.collisionCooldown = 60;
+                G.screenShake = 15;
+                G.showDamage(G.player.x, G.player.y, 100, true);
+                G.spawnParticles(G.player.x, G.player.y, '#ff4444', 10);
+                if (G.player.hp <= 0) G.gameOver();
+            }
+        }
+        if (this.collisionCooldown > 0) this.collisionCooldown--;
+
+        // 如果超出屏幕底部，重置到顶部（进入下一关）
+        if (this.headY > G.H + 200) {
+            this.resetToTop();
+        }
+    };
+
+    SnakeBoss.prototype.resetToTop = function() {
+        this.headY = -100;
+        this.headX = G.W / 2;
+        this.segments = [];
+        for (var i = 0; i < this.segmentCount; i++) {
+            this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
+        }
+    };
+
+    SnakeBoss.prototype.draw = function() {
+        var ctx = G.ctx;
+        // 画身体段（每段分开，显示血量）
+        for (var i = 0; i < this.segments.length; i++) {
+            var s = this.segments[i];
+            var r = this.radius * (1 - (i / this.segmentCount) * 0.3);
+            if (r < 10) r = 10;
+            
+            // 根据剩余血量变色
+            var hpRatio = s.hp / this.segHp;
+            var segColor = hpRatio > 0.5 ? '#44cc44' : (hpRatio > 0.2 ? '#ffaa00' : '#ff4444');
+            
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = segColor;
+            ctx.fill();
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 段内显示血量（加大字号）
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.font = 'bold ' + Math.max(12, r * 0.8) + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeText(Math.max(0, Math.ceil(s.hp)), s.x, s.y);
+            ctx.fillText(Math.max(0, Math.ceil(s.hp)), s.x, s.y);
+        }
+
+        // 头部（大一些，不显示血量）
+        ctx.save();
+        ctx.translate(this.headX, this.headY);
+        for (var t = 0; t < 6; t++) {
+            var angle = (t / 6) * Math.PI * 2 + G.time * 0.1;
+            var len = 40 + Math.sin(G.time * 0.3 + t) * 10;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(
+                Math.cos(angle) * len * 0.5 + Math.sin(G.time * 0.5) * 10,
+                Math.sin(angle) * len * 0.5,
+                Math.cos(angle) * len,
+                Math.sin(angle) * len
+            );
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI * 2);
+        var headGrad = ctx.createRadialGradient(-5, -5, 5, 0, 0, this.radius * 1.5);
+        headGrad.addColorStop(0, '#aaffaa');
+        headGrad.addColorStop(0.5, '#00ff00');
+        headGrad.addColorStop(1, '#004400');
+        ctx.fillStyle = headGrad;
+        ctx.fill();
+        ctx.fillStyle = 'red';
+        ctx.beginPath(); ctx.arc(-10, -5, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(10, -5, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.beginPath(); ctx.arc(-10, -5, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(10, -5, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    };
+
+    SnakeBoss.prototype.takeDamage = function(dmg, segIndex) {
+        // 扣对应段的HP
+        if (segIndex !== undefined && segIndex >= 0 && segIndex < this.segments.length) {
+            this.segments[segIndex].hp -= dmg;
+            G.showDamage(this.segments[segIndex].x, this.segments[segIndex].y, dmg, Math.random() < 0.2);
+            // 段HP归零，移除该段，后面的段自动前移
+            if (this.segments[segIndex].hp <= 0) {
+                G.spawnParticles(this.segments[segIndex].x, this.segments[segIndex].y, '#00ff00', 8);
+                this.segments.splice(segIndex, 1);
+                G.score += 10;
+                // 打掉一段，整体后退
+                this.retreat();
+            }
+        }
+
+        // 总HP更新
+        var totalHp = 0;
+        for (var k = 0; k < this.segments.length; k++) totalHp += this.segments[k].hp;
+        this.hp = totalHp;
+
+        G.screenShake = Math.min(10, G.screenShake + 1);
+        G.spawnParticles(this.headX, this.headY, '#00ff00', 3);
+
+        var hpFill = document.getElementById('boss-hp-fill');
+        if (hpFill) hpFill.style.width = (Math.max(0, this.hp / this.maxHp) * 100) + '%';
+
+        // 全部段清除 = BOSS死亡
+        if (this.segments.length === 0) {
+            G.score += 1000;
+            G.spawnParticles(this.headX, this.headY, '#00ff00', 100);
+            var self = this;
+            setTimeout(function() {
+                G.boss = new SnakeBoss(bossLevel + 1);
+                var hpFill2 = document.getElementById('boss-hp-fill');
+                if (hpFill2) hpFill2.style.width = '100%';
+            }, 1000);
+        }
+    };
+
+    G.SnakeBoss = SnakeBoss;
+
+    SnakeBoss.prototype.retreat = function() {
+        var pullBack = 50; // 每次后退距离
+        this.headY -= pullBack;
+        for (var i = 0; i < this.segments.length; i++) {
+            this.segments[i].y -= pullBack;
+        }
+        // 防止退到屏幕外
+        if (this.headY < this.minY) {
+            this.headY = this.minY;
+            for (var i = 0; i < this.segments.length; i++) {
+                this.segments[i].y = this.minY - i * (this.radius * 2.8);
+            }
+        }
+    };
+
+    G.bossUpdate = function() {
+        if (G.boss) G.boss.update();
+    };
+
+    G.bossDraw = function() {
+        if (G.boss) G.boss.draw();
+    };
+})();
