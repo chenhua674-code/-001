@@ -5,15 +5,15 @@
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
         // 关卡1：宽S型，缓慢
-        { speed: 0.8, amplitude: 150, frequency: 0.015, phaseShift: 0, minY: 80, maxY: null },
+        { speed: 0.5, amplitude: 300, frequency: 0.025, phaseShift: 0, minY: 80, maxY: null },
         // 关卡2：窄S型，中等速度
-        { speed: 1.0, amplitude: 100, frequency: 0.025, phaseShift: Math.PI, minY: 60, maxY: null },
+        { speed: 0.6, amplitude: 200, frequency: 0.035, phaseShift: Math.PI, minY: 60, maxY: null },
         // 关卡3：大振幅，快速
-        { speed: 1.2, amplitude: 200, frequency: 0.02, phaseShift: Math.PI / 2, minY: 100, maxY: null },
+        { speed: 0.7, amplitude: 350, frequency: 0.03, phaseShift: Math.PI / 2, minY: 100, maxY: null },
         // 关卡4：高频小振幅
-        { speed: 1.0, amplitude: 80, frequency: 0.04, phaseShift: 0, minY: 80, maxY: null },
+        { speed: 0.6, amplitude: 150, frequency: 0.05, phaseShift: 0, minY: 80, maxY: null },
         // 关卡5：超大振幅慢速
-        { speed: 0.7, amplitude: 250, frequency: 0.012, phaseShift: Math.PI / 3, minY: 60, maxY: null },
+        { speed: 0.4, amplitude: 400, frequency: 0.02, phaseShift: Math.PI / 3, minY: 60, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -37,11 +37,12 @@
         this.headY = -100;
         this.speed = route.speed;
         this.radius = 25;
-        this.amplitude = 250; // 加大S型幅度，明显走S
-        this.frequency = 0.012; // 减缓S型频率
+        this.amplitude = route.amplitude; // 跟随关卡配置
+        this.frequency = route.frequency; // 跟随关卡配置
         this.phaseShift = route.phaseShift;
         this.collisionCooldown = 0;
         this.minY = route.minY;
+        this.segSpacing = this.radius * 1.8; // 格子紧凑间距
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
 
         for (var i = 0; i < this.segmentCount; i++) {
@@ -72,7 +73,6 @@
         }
 
         // 身体跟随（每段保持自己的HP，不重新分配）
-        var segSpacing = this.radius * 2.8;
         var targetX = this.headX;
         var targetY = this.headY;
         
@@ -81,9 +81,9 @@
             var dx = targetX - seg.x;
             var dy = targetY - seg.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > segSpacing) {
-                seg.x = targetX - (dx / dist) * segSpacing;
-                seg.y = targetY - (dy / dist) * segSpacing;
+            if (dist > this.segSpacing) {
+                seg.x = targetX - (dx / dist) * this.segSpacing;
+                seg.y = targetY - (dy / dist) * this.segSpacing;
             }
             targetX = seg.x;
             targetY = seg.y;
@@ -238,7 +238,7 @@
         if (this.headY < this.minY) {
             this.headY = this.minY;
             for (var i = 0; i < this.segments.length; i++) {
-                this.segments[i].y = this.minY - i * (this.radius * 2.8);
+                this.segments[i].y = this.minY - i * this.segSpacing;
             }
         }
     };
