@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：宽S型，缓慢
-        { speed: 0.5, amplitude: 300, frequency: 0.025, phaseShift: 0, minY: 80, maxY: null },
-        // 关卡2：窄S型，中等速度
-        { speed: 0.6, amplitude: 200, frequency: 0.035, phaseShift: Math.PI, minY: 60, maxY: null },
-        // 关卡3：大振幅，快速
-        { speed: 0.7, amplitude: 350, frequency: 0.03, phaseShift: Math.PI / 2, minY: 100, maxY: null },
-        // 关卡4：高频小振幅
-        { speed: 0.6, amplitude: 150, frequency: 0.05, phaseShift: 0, minY: 80, maxY: null },
-        // 关卡5：超大振幅慢速
-        { speed: 0.4, amplitude: 400, frequency: 0.02, phaseShift: Math.PI / 3, minY: 60, maxY: null },
+        // 关卡1：宽S型，缓慢（大弯度+慢速）
+        { speed: 0.35, amplitude: 380, frequency: 0.035, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡2：中等S型
+        { speed: 0.4, amplitude: 300, frequency: 0.045, phaseShift: Math.PI, minY: 60, maxY: null },
+        // 关卡3：大振幅
+        { speed: 0.5, amplitude: 420, frequency: 0.035, phaseShift: Math.PI / 2, minY: 100, maxY: null },
+        // 关卡4：高频密S型
+        { speed: 0.4, amplitude: 250, frequency: 0.06, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡5：超大振幅超慢
+        { speed: 0.25, amplitude: 450, frequency: 0.025, phaseShift: Math.PI / 3, minY: 60, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -52,9 +52,9 @@
 
     SnakeBoss.prototype.update = function() {
         this.headY += this.speed;
-        // 宽S型走位 = headY驱动正弦波 + 时间偏移
+        // 宽S型走位 = headY驱动正弦波 + 小时间偏移（避免左右抖动太快）
         this.headX = G.W / 2 + Math.sin(
-            this.headY * this.frequency + G.time * 0.015 + this.phaseShift
+            this.headY * this.frequency + G.time * 0.005 + this.phaseShift
         ) * this.amplitude;
 
         // 左右边界
