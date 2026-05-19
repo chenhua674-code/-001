@@ -44,6 +44,8 @@
         this.minY = route.minY;
         this.segSpacing = this.radius * 1.8; // 格子紧凑间距
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
+        // 帧率无关移动：用时间戳控制速度
+        this._lastTime = performance.now();
 
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -51,8 +53,17 @@
     }
 
     SnakeBoss.prototype.update = function() {
-        this.headY += this.speed;
-        // 宽S型走位 = headY驱动正弦波 + 小时间偏移（避免左右抖动太快）
+        // 帧率无关移动：基于真实时间戳，确保任何显示器速度一致
+        var now = performance.now();
+        var dt = now - this._lastTime; // 毫秒
+        if (dt < 1) return; // 避免同一毫秒多次移动
+        this._lastTime = now;
+        
+        // speed基于60fps设计：每帧移动speed像素
+        // 换算：每毫秒移动 speed/16.67 像素
+        var moveAmount = this.speed * (dt / 16.667);
+        this.headY += moveAmount;
+        // 宽S型走位 = headY驱动正弦波 + 小时间偏移
         this.headX = G.W / 2 + Math.sin(
             this.headY * this.frequency + G.time * 0.005 + this.phaseShift
         ) * this.amplitude;
