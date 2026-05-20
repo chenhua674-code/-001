@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：慢速教学，S型（让玩家熟悉玩法）
-        { speed: 0.25, amplitude: 200, frequency: 0.010, phaseShift: 0, minY: 80, maxY: null },
-        // 关卡2：正常速度，中等S型（标准难度）
-        { speed: 0.35, amplitude: 220, frequency: 0.012, phaseShift: Math.PI, minY: 60, maxY: null },
-        // 关卡3：快速，大振幅S型（开始有压迫感）
-        { speed: 0.45, amplitude: 240, frequency: 0.014, phaseShift: Math.PI / 2, minY: 100, maxY: null },
-        // 关卡4：高速，紧凑S型（高难度）
-        { speed: 0.55, amplitude: 260, frequency: 0.016, phaseShift: 0, minY: 80, maxY: null },
-        // 关卡5：极速，疯狂S型（BOSS关）
-        { speed: 0.70, amplitude: 280, frequency: 0.018, phaseShift: Math.PI / 3, minY: 60, maxY: null },
+        // 关卡1：慢速，紧凑S型
+        { speed: 0.25, amplitude: 160, frequency: 0.015, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡2：正常速度，紧凑S型
+        { speed: 0.35, amplitude: 170, frequency: 0.016, phaseShift: Math.PI, minY: -200, maxY: null },
+        // 关卡3：快速，紧凑S型
+        { speed: 0.45, amplitude: 180, frequency: 0.017, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        // 关卡4：高速，紧凑S型
+        { speed: 0.55, amplitude: 190, frequency: 0.018, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡5：极速，紧凑S型
+        { speed: 0.70, amplitude: 200, frequency: 0.020, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -64,14 +64,20 @@
         // 换算：每毫秒移动 speed/16.67 像素
         var moveAmount = this.speed * (dt / 16.667);
         
-        // 平滑后退处理（替代瞬间跳变）
+        // 平滑后退处理（替代瞬间跳变），但不退过起始位置
         if (this._retreatRemaining && this._retreatRemaining > 0) {
-            var retreatSpeed = moveAmount * 3; // 后退速度是前进的3倍，快速完成
+            var retreatSpeed = moveAmount * 2;
             if (retreatSpeed >= this._retreatRemaining) {
                 retreatSpeed = this._retreatRemaining;
                 this._retreatRemaining = 0;
             }
-            this.headY -= retreatSpeed;
+            // 限制：退到 -100 就不再退了
+            var newY = this.headY - retreatSpeed;
+            if (newY > -100) {
+                this.headY = newY;
+            } else {
+                this._retreatRemaining = 0;
+            }
         } else {
             this.headY += moveAmount;
         }
