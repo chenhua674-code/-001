@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：慢速教学，宽S型（让玩家熟悉玩法）
-        { speed: 0.25, amplitude: 280, frequency: 0.008, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡1：慢速教学，S型（让玩家熟悉玩法）
+        { speed: 0.25, amplitude: 200, frequency: 0.010, phaseShift: 0, minY: 80, maxY: null },
         // 关卡2：正常速度，中等S型（标准难度）
-        { speed: 0.35, amplitude: 320, frequency: 0.010, phaseShift: Math.PI, minY: 60, maxY: null },
+        { speed: 0.35, amplitude: 220, frequency: 0.012, phaseShift: Math.PI, minY: 60, maxY: null },
         // 关卡3：快速，大振幅S型（开始有压迫感）
-        { speed: 0.45, amplitude: 350, frequency: 0.012, phaseShift: Math.PI / 2, minY: 100, maxY: null },
+        { speed: 0.45, amplitude: 240, frequency: 0.014, phaseShift: Math.PI / 2, minY: 100, maxY: null },
         // 关卡4：高速，紧凑S型（高难度）
-        { speed: 0.55, amplitude: 380, frequency: 0.015, phaseShift: 0, minY: 80, maxY: null },
+        { speed: 0.55, amplitude: 260, frequency: 0.016, phaseShift: 0, minY: 80, maxY: null },
         // 关卡5：极速，疯狂S型（BOSS关）
-        { speed: 0.70, amplitude: 400, frequency: 0.018, phaseShift: Math.PI / 3, minY: 60, maxY: null },
+        { speed: 0.70, amplitude: 280, frequency: 0.018, phaseShift: Math.PI / 3, minY: 60, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -42,7 +42,7 @@
         this.phaseShift = route.phaseShift;
         this.collisionCooldown = 0;
         this.minY = route.minY;
-        this.segSpacing = this.radius * 0.8; // 紧凑间距（紧凑连接）
+        this.segSpacing = this.radius * 1.4; // 适中间距，数字可见
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
         // 帧率无关移动：用时间戳控制速度
         this._lastTime = performance.now();
