@@ -37,8 +37,11 @@
                 // 碰撞身体段（从前往后找最近的）
                 for (var j = 0; j < G.boss.segments.length; j++) {
                     var seg = G.boss.segments[j];
+                    // 使用段的实际半径（与绘制逻辑一致）
+                    var segRadius = G.boss.radius * (1 - (j / G.boss.segmentCount) * 0.3);
+                    if (segRadius < 10) segRadius = 10;
                     var d = Math.sqrt((b.x - seg.x) * (b.x - seg.x) + (b.y - seg.y) * (b.y - seg.y));
-                    if (d < G.boss.radius + 5 && d < minDist) {
+                    if (d < segRadius + 5 && d < minDist) {
                         minDist = d;
                         hitSegIndex = j;
                     }

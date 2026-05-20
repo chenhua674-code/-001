@@ -42,6 +42,8 @@
         G.player.hasAngel = false;
         G.player.angelCount = 0;
         G.player.skills = ['多发弹', '穿透弹'];
+        G.player.x = G.W / 2;
+        G.player.y = G.H - 80;
 
         G.boss = new G.SnakeBoss();
         G.bullets = [];
@@ -50,6 +52,8 @@
         G.damageNums = [];
         G.score = 0;
         G.time = 0;
+        G.screenShake = 0;
+        G.inputX = G.W / 2;
 
         var go = document.getElementById('game-over');
         if (go) go.style.display = 'none';
