@@ -46,6 +46,7 @@
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
         // 帧率无关移动：用时间戳控制速度
         this._lastTime = performance.now();
+        this._retreatRemaining = 0; // 平滑后退剩余距离
 
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -62,7 +63,19 @@
         // speed基于60fps设计：每帧移动speed像素
         // 换算：每毫秒移动 speed/16.67 像素
         var moveAmount = this.speed * (dt / 16.667);
-        this.headY += moveAmount;
+        
+        // 平滑后退处理（替代瞬间跳变）
+        if (this._retreatRemaining && this._retreatRemaining > 0) {
+            var retreatSpeed = moveAmount * 3; // 后退速度是前进的3倍，快速完成
+            if (retreatSpeed >= this._retreatRemaining) {
+                retreatSpeed = this._retreatRemaining;
+                this._retreatRemaining = 0;
+            }
+            this.headY -= retreatSpeed;
+        } else {
+            this.headY += moveAmount;
+        }
+        
         // 宽S型走位 = headY驱动正弦波 + 小时间偏移
         this.headX = G.W / 2 + Math.sin(
             this.headY * this.frequency + G.time * 0.005 + this.phaseShift
@@ -126,6 +139,7 @@
     SnakeBoss.prototype.resetToTop = function() {
         this.headY = -100;
         this.headX = G.W / 2;
+        this._retreatRemaining = 0;
         this.segments = [];
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -240,18 +254,8 @@
     G.SnakeBoss = SnakeBoss;
 
     SnakeBoss.prototype.retreat = function() {
-        var pullBack = 50; // 每次后退距离
-        this.headY -= pullBack;
-        for (var i = 0; i < this.segments.length; i++) {
-            this.segments[i].y -= pullBack;
-        }
-        // 防止退到屏幕外
-        if (this.headY < this.minY) {
-            this.headY = this.minY;
-            for (var i = 0; i < this.segments.length; i++) {
-                this.segments[i].y = this.minY - i * this.segSpacing;
-            }
-        }
+        // 改用平滑后退，避免闪烁
+        this._retreatRemaining = 50; // 需要后退的总距离
     };
 
     G.bossUpdate = function() {
