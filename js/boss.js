@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：慢速，大S弯
-        { pixelsPerSecond: 150, amplitude: 300, frequency: 0.010, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡1：慢速，大S弯 (约 60秒走完)
+        { pixelsPerSecond: 15, amplitude: 300, frequency: 0.010, phaseShift: 0, minY: -200, maxY: null },
         // 关卡2：正常速度，紧凑大S弯
-        { pixelsPerSecond: 180, amplitude: 320, frequency: 0.012, phaseShift: Math.PI, minY: -200, maxY: null },
+        { pixelsPerSecond: 18, amplitude: 320, frequency: 0.012, phaseShift: Math.PI, minY: -200, maxY: null },
         // 关卡3：快速，疯狂S弯
-        { pixelsPerSecond: 210, amplitude: 340, frequency: 0.014, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        { pixelsPerSecond: 21, amplitude: 340, frequency: 0.014, phaseShift: Math.PI / 2, minY: -200, maxY: null },
         // 关卡4：高速，高频S弯
-        { pixelsPerSecond: 240, amplitude: 360, frequency: 0.016, phaseShift: 0, minY: -200, maxY: null },
+        { pixelsPerSecond: 24, amplitude: 360, frequency: 0.016, phaseShift: 0, minY: -200, maxY: null },
         // 关卡5：极速，变态S弯（BOSS关）
-        { pixelsPerSecond: 270, amplitude: 380, frequency: 0.018, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        { pixelsPerSecond: 27, amplitude: 380, frequency: 0.018, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
