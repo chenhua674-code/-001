@@ -3,19 +3,18 @@
     var G = window.G;
 
     // 蛇路线配置 - 每关不同走位
-    // amplitudeRatio: 横向摆幅占屏幕半宽的比例 (0.45 = 90% 总宽度)
-    // period: 纵向 S 弯的周期长度 (像素)，越小越密
+    // 幅度大 S 型：高速 + 大摆幅 + 舒展的波浪
     var ROUTES = [
-        // 关卡1：大幅 S 弯
-        { pixelsPerSecond: 15, amplitudeRatio: 0.45, period: 200, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡2：稍快
-        { pixelsPerSecond: 18, amplitudeRatio: 0.45, period: 180, phaseShift: Math.PI, minY: -200, maxY: null },
-        // 关卡3：快速
-        { pixelsPerSecond: 21, amplitudeRatio: 0.45, period: 160, phaseShift: Math.PI / 2, minY: -200, maxY: null },
-        // 关卡4：高速
-        { pixelsPerSecond: 24, amplitudeRatio: 0.45, period: 140, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡5：极速
-        { pixelsPerSecond: 27, amplitudeRatio: 0.45, period: 120, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        // 关卡1：大幅 S 弯 (速度快 + 摆幅极大)
+        { pixelsPerSecond: 50, amplitude: 350, frequency: 0.015, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡2：稍快，更紧凑
+        { pixelsPerSecond: 60, amplitude: 380, frequency: 0.018, phaseShift: Math.PI, minY: -200, maxY: null },
+        // 关卡3：快速，疯狂扭动
+        { pixelsPerSecond: 70, amplitude: 400, frequency: 0.020, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        // 关卡4：高速，变态
+        { pixelsPerSecond: 80, amplitude: 420, frequency: 0.022, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡5：极速，鬼畜
+        { pixelsPerSecond: 90, amplitude: 450, frequency: 0.025, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -38,9 +37,8 @@
         this.headX = G.W / 2;
         this.headY = -100;
         this.radius = 25;
-        // 根据配置计算实际参数
-        this.amplitude = route.amplitudeRatio * (G.W / 2); // 摆幅占屏幕半宽比例
-        this.frequency = (2 * Math.PI) / route.period;     // 根据周期长度计算频率
+        this.amplitude = route.amplitude; 
+        this.frequency = route.frequency; 
         this.phaseShift = route.phaseShift;
         this.collisionCooldown = 0;
         this.minY = route.minY;
@@ -64,6 +62,7 @@
         this.headY += this._pixelsPerSecond * dt;
 
         // S型走位：headY 驱动正弦波
+        // 头部也是波浪的一部分，相位为 0
         this.headX = G.W / 2 + Math.sin(
             this.headY * this.frequency + this.phaseShift
         ) * this.amplitude;
@@ -83,21 +82,21 @@
             return;
         }
 
-        // 身体跟随（每段保持自己的HP，不重新分配）
-        var targetX = this.headX;
-        var targetY = this.headY;
-        
+        // 身体跟随（波浪行进算法：每一节独立计算，带有相位延迟）
+        // 这种算法比 IK 跟随更稳定，蛇身永远是完美的波浪形
+        var basePhase = this.phaseShift;
+        // 每一节之间的相位差，越小蛇身越连贯，越大蛇身越扭
+        // 为了紧凑 S 型，相位差设小一点
+        var phaseLag = this.frequency * this.segSpacing * 0.5; 
+
         for (var k = 0; k < this.segments.length; k++) {
             var seg = this.segments[k];
-            var dx = targetX - seg.x;
-            var dy = targetY - seg.y;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > this.segSpacing) {
-                seg.x = targetX - (dx / dist) * this.segSpacing;
-                seg.y = targetY - (dy / dist) * this.segSpacing;
-            }
-            targetX = seg.x;
-            targetY = seg.y;
+            // Y轴位置：头部当前位置 - k * 间距
+            seg.y = this.headY - k * this.segSpacing;
+            // X轴位置：根据 Y 和 索引 计算波浪位置
+            seg.x = G.W / 2 + Math.sin(
+                seg.y * this.frequency + basePhase + k * phaseLag
+            ) * this.amplitude;
         }
 
         // 碰撞玩家（冷却避免叠伤）
