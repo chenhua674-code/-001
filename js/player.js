@@ -17,6 +17,9 @@
             xpToNext: 100,
             bulletCount: 1,       // 初始单发
             pierce: 1,            // 初始穿透
+            bulletSpeed: 14,      // 子弹速度
+            bulletSize: 4,        // 子弹大小
+            critRate: 0,          // 暴击率
             hasAngel: false,
             angelCount: 0,
             skills: []            // 技能列表
@@ -54,17 +57,34 @@
             // 固定发射位置和方向
             var px = G.player.x;
             var py = G.player.y;
-            var speed = 14;
+            var speed = G.player.bulletSpeed || 14;
+            var size = G.player.bulletSize || 4;
             
-            G.fireSkill({
-                x: px,
-                y: py,
-                vx: 0,            // 纯垂直向上
-                vy: -speed,
-                dmg: G.player.damage,
-                color: '#00ffff',
-                pierce: G.player.pierce
-            });
+            // 暴击判定
+            var isCrit = Math.random() < (G.player.critRate || 0);
+            var dmg = isCrit ? G.player.damage * 2 : G.player.damage;
+            
+            // 多发弹（扇形分布）
+            var count = G.player.bulletCount || 1;
+            var spread = count > 1 ? 0.3 : 0;
+            var startAngle = -(count - 1) * spread / 2;
+            
+            for (var i = 0; i < count; i++) {
+                var angle = startAngle + i * spread;
+                var vx = Math.sin(angle) * speed;
+                var vy = -Math.cos(angle) * speed;
+                
+                G.fireSkill({
+                    x: px,
+                    y: py,
+                    vx: vx,
+                    vy: vy,
+                    dmg: dmg,
+                    color: isCrit ? '#ffff00' : '#00ffff',
+                    pierce: G.player.pierce,
+                    size: size
+                });
+            }
         }
     };
 

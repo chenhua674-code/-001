@@ -39,6 +39,9 @@
         G.player.fireRate = 25;
         G.player.bulletCount = 1;
         G.player.pierce = 1;
+        G.player.bulletSpeed = 14;
+        G.player.bulletSize = 4;
+        G.player.critRate = 0;
         G.player.hasAngel = false;
         G.player.angelCount = 0;
         G.player.skills = ['多发弹', '穿透弹'];

@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：慢速，紧凑S型
-        { speed: 0.25, amplitude: 160, frequency: 0.015, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡2：正常速度，紧凑S型
-        { speed: 0.35, amplitude: 170, frequency: 0.016, phaseShift: Math.PI, minY: -200, maxY: null },
-        // 关卡3：快速，紧凑S型
-        { speed: 0.45, amplitude: 180, frequency: 0.017, phaseShift: Math.PI / 2, minY: -200, maxY: null },
-        // 关卡4：高速，紧凑S型
-        { speed: 0.55, amplitude: 190, frequency: 0.018, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡5：极速，紧凑S型
-        { speed: 0.70, amplitude: 200, frequency: 0.020, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        // 关卡1：慢速，大S弯（原版风格）
+        { speed: 0.25, amplitude: 350, frequency: 0.006, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡2：正常速度，紧凑大S弯
+        { speed: 0.35, amplitude: 380, frequency: 0.007, phaseShift: Math.PI, minY: -200, maxY: null },
+        // 关卡3：快速，疯狂S弯
+        { speed: 0.45, amplitude: 400, frequency: 0.008, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        // 关卡4：高速，高频S弯
+        { speed: 0.55, amplitude: 420, frequency: 0.009, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡5：极速，变态S弯（BOSS关）
+        { speed: 0.70, amplitude: 450, frequency: 0.010, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;

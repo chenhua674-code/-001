@@ -3,14 +3,18 @@
     var G = window.G;
 
     G.SKILLS = [
-        { name: '多发弹', icon: '🔥', desc: '同时发射多发子弹', effect: function() { G.player.bulletCount++; } },
-        { name: '伤害提升', icon: '⚔️', desc: '伤害 +30', effect: function() { G.player.damage += 30; } },
-        { name: '射速提升', icon: '⚡', desc: '攻击间隔 -3', effect: function() { G.player.fireRate = Math.max(5, G.player.fireRate - 3); } },
-        { name: '穿透弹', icon: '🎯', desc: '子弹可穿透 +1', effect: function() { G.player.pierce++; } },
+        { name: '多发弹', icon: '🔥', desc: '同时发射3发子弹', effect: function() { G.player.bulletCount = Math.min(G.player.bulletCount + 2, 9); } },
+        { name: '伤害翻倍', icon: '⚔️', desc: '攻击力 ×2', effect: function() { G.player.damage *= 2; } },
+        { name: '子弹加速', icon: '💨', desc: '子弹速度 +50%', effect: function() { G.player.bulletSpeed = (G.player.bulletSpeed || 14) * 1.5; } },
+        { name: '射速翻倍', icon: '⚡', desc: '攻击频率 ×2', effect: function() { G.player.fireRate = Math.max(3, Math.floor(G.player.fireRate / 2)); } },
+        { name: '穿透弹', icon: '🎯', desc: '穿透 +2', effect: function() { G.player.pierce += 2; } },
         { name: '天使助战', icon: '👼', desc: '召唤天使自动攻击', effect: function() { G.player.hasAngel = true; G.player.angelCount++; } },
         { name: 'HP恢复', icon: '❤️', desc: '回复 500 HP', effect: function() { G.player.hp = Math.min(G.player.maxHp, G.player.hp + 500); } },
         { name: '最大HP提升', icon: '💖', desc: '最大HP +300', effect: function() { G.player.maxHp += 300; G.player.hp += 300; } },
-        { name: '范围扩大', icon: '🌟', desc: '攻击范围增大', effect: function() { G.player.radius += 5; } }
+        { name: '范围扩大', icon: '🌟', desc: '攻击范围增大', effect: function() { G.player.radius += 5; } },
+        { name: '伤害+50', icon: '🗡️', desc: '攻击力 +50', effect: function() { G.player.damage += 50; } },
+        { name: '子弹变大', icon: '💎', desc: '子弹更容易命中', effect: function() { G.player.bulletSize = (G.player.bulletSize || 4) + 2; } },
+        { name: '暴击率提升', icon: '💥', desc: '20%概率双倍伤害', effect: function() { G.player.critRate = (G.player.critRate || 0) + 0.2; } }
     ];
 
     G.showSkillMenu = function() {

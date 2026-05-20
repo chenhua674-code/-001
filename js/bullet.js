@@ -29,7 +29,7 @@
                 continue;
             }
 
-            // 碰撞检测（一发子弹只打中一个段）
+            // 碰撞检测（一发子弹可穿透多段）
             if (G.boss && G.boss.segments.length > 0) {
                 var hitSegIndex = -1;
                 var minDist = 999999;
@@ -37,11 +37,11 @@
                 // 碰撞身体段（从前往后找最近的）
                 for (var j = 0; j < G.boss.segments.length; j++) {
                     var seg = G.boss.segments[j];
-                    // 使用段的实际半径（与绘制逻辑一致）
                     var segRadius = G.boss.radius * (1 - (j / G.boss.segmentCount) * 0.3);
                     if (segRadius < 10) segRadius = 10;
                     var d = Math.sqrt((b.x - seg.x) * (b.x - seg.x) + (b.y - seg.y) * (b.y - seg.y));
-                    if (d < segRadius + 5 && d < minDist) {
+                    var hitRadius = segRadius + (b.size || 4);
+                    if (d < hitRadius && d < minDist) {
                         minDist = d;
                         hitSegIndex = j;
                     }
@@ -49,7 +49,11 @@
                 
                 if (hitSegIndex >= 0) {
                     G.boss.takeDamage(b.dmg, hitSegIndex);
-                    G.bullets.splice(i, 1); // 命中后子弹消失
+                    // 穿透判断
+                    b.pierce = (b.pierce || 1) - 1;
+                    if (b.pierce <= 0) {
+                        G.bullets.splice(i, 1);
+                    }
                     continue;
                 }
                 
@@ -60,7 +64,10 @@
                 );
                 if (dHead < G.boss.radius * 2) {
                     G.boss.takeDamage(b.dmg, 0);
-                    G.bullets.splice(i, 1);
+                    b.pierce = (b.pierce || 1) - 1;
+                    if (b.pierce <= 0) {
+                        G.bullets.splice(i, 1);
+                    }
                     continue;
                 }
             }
@@ -70,8 +77,9 @@
     G.bulletDraw = function() {
         for (var i = 0; i < G.bullets.length; i++) {
             var b = G.bullets[i];
+            var size = b.size || 4;
             G.ctx.beginPath();
-            G.ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+            G.ctx.arc(b.x, b.y, size, 0, Math.PI * 2);
             G.ctx.fillStyle = b.color;
             G.ctx.shadowBlur = 10;
             G.ctx.shadowColor = b.color;
