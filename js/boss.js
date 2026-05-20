@@ -91,10 +91,10 @@
         if (this.headX < this.radius) this.headX = this.radius;
         if (this.headX > G.W - this.radius) this.headX = G.W - this.radius;
 
-        // 上边界反弹
-        if (this.headY < this.minY) {
-            this.speed = Math.abs(this.speed);
-        }
+        // 上边界反弹（已禁用，蛇只向下走）
+        // if (this.headY < this.minY) {
+        //     this.speed = Math.abs(this.speed);
+        // }
 
         // 失败判定：蛇头越过防守线
         if (this.headY > this.defenseLineY) {
@@ -260,8 +260,8 @@
     G.SnakeBoss = SnakeBoss;
 
     SnakeBoss.prototype.retreat = function() {
-        // 改用平滑后退，避免闪烁
-        this._retreatRemaining = 50; // 需要后退的总距离
+        // 微小后退，不破坏前进感
+        this._retreatRemaining = 8;
     };
 
     G.bossUpdate = function() {
