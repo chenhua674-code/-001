@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：宽S型，超慢（左右满屏80%）
-        { speed: 0.17, amplitude: 520, frequency: 0.03, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡1：宽S型，正常速度（左右适中摆动）
+        { speed: 0.5, amplitude: 200, frequency: 0.012, phaseShift: 0, minY: 80, maxY: null },
         // 关卡2：中等S型
-        { speed: 0.2, amplitude: 480, frequency: 0.04, phaseShift: Math.PI, minY: 60, maxY: null },
+        { speed: 0.55, amplitude: 250, frequency: 0.015, phaseShift: Math.PI, minY: 60, maxY: null },
         // 关卡3：大振幅
-        { speed: 0.25, amplitude: 550, frequency: 0.03, phaseShift: Math.PI / 2, minY: 100, maxY: null },
+        { speed: 0.6, amplitude: 300, frequency: 0.013, phaseShift: Math.PI / 2, minY: 100, maxY: null },
         // 关卡4：高频密S型
-        { speed: 0.2, amplitude: 450, frequency: 0.05, phaseShift: 0, minY: 80, maxY: null },
-        // 关卡5：超大振幅超慢
-        { speed: 0.12, amplitude: 580, frequency: 0.02, phaseShift: Math.PI / 3, minY: 60, maxY: null },
+        { speed: 0.65, amplitude: 280, frequency: 0.018, phaseShift: 0, minY: 80, maxY: null },
+        // 关卡5：超大振幅快速
+        { speed: 0.7, amplitude: 350, frequency: 0.01, phaseShift: Math.PI / 3, minY: 60, maxY: null },
     ];
 
     var currentRoute = 0;
