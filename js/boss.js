@@ -42,7 +42,7 @@
         this.phaseShift = route.phaseShift;
         this.collisionCooldown = 0;
         this.minY = route.minY;
-        this.segSpacing = this.radius * 1.8; // 格子紧凑间距
+        this.segSpacing = this.radius * 0.8; // 紧凑间距（紧凑连接）
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
         // 帧率无关移动：用时间戳控制速度
         this._lastTime = performance.now();
