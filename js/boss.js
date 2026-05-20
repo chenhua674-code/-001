@@ -4,16 +4,16 @@
 
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
-        // 关卡1：慢速，大S弯（原版风格）
-        { speed: 0.25, amplitude: 350, frequency: 0.006, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡1：慢速，大S弯
+        { speed: 3, amplitude: 300, frequency: 0.010, phaseShift: 0, minY: -200, maxY: null },
         // 关卡2：正常速度，紧凑大S弯
-        { speed: 0.35, amplitude: 380, frequency: 0.007, phaseShift: Math.PI, minY: -200, maxY: null },
+        { speed: 3.5, amplitude: 320, frequency: 0.012, phaseShift: Math.PI, minY: -200, maxY: null },
         // 关卡3：快速，疯狂S弯
-        { speed: 0.45, amplitude: 400, frequency: 0.008, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        { speed: 4, amplitude: 340, frequency: 0.014, phaseShift: Math.PI / 2, minY: -200, maxY: null },
         // 关卡4：高速，高频S弯
-        { speed: 0.55, amplitude: 420, frequency: 0.009, phaseShift: 0, minY: -200, maxY: null },
+        { speed: 4.5, amplitude: 360, frequency: 0.016, phaseShift: 0, minY: -200, maxY: null },
         // 关卡5：极速，变态S弯（BOSS关）
-        { speed: 0.70, amplitude: 450, frequency: 0.010, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        { speed: 5, amplitude: 380, frequency: 0.018, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -44,8 +44,6 @@
         this.minY = route.minY;
         this.segSpacing = this.radius * 1.4; // 适中间距，数字可见
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
-        // 帧率无关移动：用时间戳控制速度
-        this._lastTime = performance.now();
 
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -53,22 +51,12 @@
     }
 
     SnakeBoss.prototype.update = function() {
-        // 帧率无关移动：基于真实时间戳，确保任何显示器速度一致
-        var now = performance.now();
-        var dt = now - this._lastTime; // 毫秒
-        if (dt < 1) return; // 避免同一毫秒多次移动
-        this._lastTime = now;
-        
-        // speed基于60fps设计：每帧移动speed像素
-        // 换算：每毫秒移动 speed/16.67 像素
-        var moveAmount = this.speed * (dt / 16.667);
-        this.headY += moveAmount;
-        
-        // 宽S型走位 - 多频段叠加，更像真实蛇形
-        var t = G.time * 0.001; // 秒
-        this.headX = G.W / 2 + 
-            Math.sin(this.headY * this.frequency + this.phaseShift) * this.amplitude * 0.7 +
-            Math.sin(this.headY * this.frequency * 0.5 + t * 0.8) * this.amplitude * 0.3;
+        this.headY += this.speed;
+
+        // S型走位：headY 驱动正弦波，频率控制弯的疏密
+        this.headX = G.W / 2 + Math.sin(
+            this.headY * this.frequency + this.phaseShift
+        ) * this.amplitude;
 
         // 左右边界
         if (this.headX < this.radius) this.headX = this.radius;
