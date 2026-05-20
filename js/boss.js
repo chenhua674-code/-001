@@ -5,15 +5,15 @@
     // 蛇路线配置 - 每关不同走位
     var ROUTES = [
         // 关卡1：慢速，大S弯
-        { speed: 3, amplitude: 300, frequency: 0.010, phaseShift: 0, minY: -200, maxY: null },
+        { pixelsPerSecond: 150, amplitude: 300, frequency: 0.010, phaseShift: 0, minY: -200, maxY: null },
         // 关卡2：正常速度，紧凑大S弯
-        { speed: 3.5, amplitude: 320, frequency: 0.012, phaseShift: Math.PI, minY: -200, maxY: null },
+        { pixelsPerSecond: 180, amplitude: 320, frequency: 0.012, phaseShift: Math.PI, minY: -200, maxY: null },
         // 关卡3：快速，疯狂S弯
-        { speed: 4, amplitude: 340, frequency: 0.014, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        { pixelsPerSecond: 210, amplitude: 340, frequency: 0.014, phaseShift: Math.PI / 2, minY: -200, maxY: null },
         // 关卡4：高速，高频S弯
-        { speed: 4.5, amplitude: 360, frequency: 0.016, phaseShift: 0, minY: -200, maxY: null },
+        { pixelsPerSecond: 240, amplitude: 360, frequency: 0.016, phaseShift: 0, minY: -200, maxY: null },
         // 关卡5：极速，变态S弯（BOSS关）
-        { speed: 5, amplitude: 380, frequency: 0.018, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        { pixelsPerSecond: 270, amplitude: 380, frequency: 0.018, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -35,7 +35,6 @@
         this.maxHp = this.segHp * this.segmentCount;
         this.headX = G.W / 2;
         this.headY = -100;
-        this.speed = route.speed;
         this.radius = 25;
         this.amplitude = route.amplitude; // 跟随关卡配置
         this.frequency = route.frequency; // 跟随关卡配置
@@ -44,6 +43,9 @@
         this.minY = route.minY;
         this.segSpacing = this.radius * 1.4; // 适中间距，数字可见
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
+        // 帧率无关移动：像素/秒
+        this._pixelsPerSecond = route.pixelsPerSecond;
+        this._lastTime = performance.now();
 
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -51,9 +53,14 @@
     }
 
     SnakeBoss.prototype.update = function() {
-        this.headY += this.speed;
+        var now = performance.now();
+        var dt = (now - this._lastTime) / 1000; // 秒
+        this._lastTime = now;
+        if (dt > 0.1) dt = 0.1; // 限制最大dt（切回tab时）
 
-        // S型走位：headY 驱动正弦波，频率控制弯的疏密
+        this.headY += this._pixelsPerSecond * dt;
+
+        // S型走位：headY 驱动正弦波
         this.headX = G.W / 2 + Math.sin(
             this.headY * this.frequency + this.phaseShift
         ) * this.amplitude;
