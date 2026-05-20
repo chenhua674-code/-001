@@ -46,7 +46,6 @@
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
         // 帧率无关移动：用时间戳控制速度
         this._lastTime = performance.now();
-        this._retreatRemaining = 0; // 平滑后退剩余距离
 
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -63,24 +62,7 @@
         // speed基于60fps设计：每帧移动speed像素
         // 换算：每毫秒移动 speed/16.67 像素
         var moveAmount = this.speed * (dt / 16.667);
-        
-        // 平滑后退处理（替代瞬间跳变），但不退过起始位置
-        if (this._retreatRemaining && this._retreatRemaining > 0) {
-            var retreatSpeed = moveAmount * 2;
-            if (retreatSpeed >= this._retreatRemaining) {
-                retreatSpeed = this._retreatRemaining;
-                this._retreatRemaining = 0;
-            }
-            // 限制：退到 -100 就不再退了
-            var newY = this.headY - retreatSpeed;
-            if (newY > -100) {
-                this.headY = newY;
-            } else {
-                this._retreatRemaining = 0;
-            }
-        } else {
-            this.headY += moveAmount;
-        }
+        this.headY += moveAmount;
         
         // 宽S型走位 = headY驱动正弦波 + 小时间偏移
         this.headX = G.W / 2 + Math.sin(
@@ -145,7 +127,6 @@
     SnakeBoss.prototype.resetToTop = function() {
         this.headY = -100;
         this.headX = G.W / 2;
-        this._retreatRemaining = 0;
         this.segments = [];
         for (var i = 0; i < this.segmentCount; i++) {
             this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
@@ -260,8 +241,7 @@
     G.SnakeBoss = SnakeBoss;
 
     SnakeBoss.prototype.retreat = function() {
-        // 微小后退，不破坏前进感
-        this._retreatRemaining = 8;
+        // 去掉后退，只留打击反馈（粒子特效），蛇继续前进
     };
 
     G.bossUpdate = function() {
