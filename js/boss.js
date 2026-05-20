@@ -3,17 +3,19 @@
     var G = window.G;
 
     // 蛇路线配置 - 每关不同走位
+    // amplitudeRatio: 横向摆幅占屏幕半宽的比例 (0.45 = 90% 总宽度)
+    // period: 纵向 S 弯的周期长度 (像素)，越小越密
     var ROUTES = [
-        // 关卡1：慢速，紧凑 S 型（波浪状扭动）
-        { pixelsPerSecond: 15, amplitude: 120, frequency: 0.06, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡2：稍快，弯更密
-        { pixelsPerSecond: 18, amplitude: 130, frequency: 0.07, phaseShift: Math.PI, minY: -200, maxY: null },
-        // 关卡3：快速，急促扭动
-        { pixelsPerSecond: 21, amplitude: 140, frequency: 0.08, phaseShift: Math.PI / 2, minY: -200, maxY: null },
-        // 关卡4：高速，密集波浪
-        { pixelsPerSecond: 24, amplitude: 150, frequency: 0.09, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡5：极速，变态扭动
-        { pixelsPerSecond: 27, amplitude: 160, frequency: 0.10, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        // 关卡1：大幅 S 弯
+        { pixelsPerSecond: 15, amplitudeRatio: 0.45, period: 200, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡2：稍快
+        { pixelsPerSecond: 18, amplitudeRatio: 0.45, period: 180, phaseShift: Math.PI, minY: -200, maxY: null },
+        // 关卡3：快速
+        { pixelsPerSecond: 21, amplitudeRatio: 0.45, period: 160, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        // 关卡4：高速
+        { pixelsPerSecond: 24, amplitudeRatio: 0.45, period: 140, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡5：极速
+        { pixelsPerSecond: 27, amplitudeRatio: 0.45, period: 120, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -36,8 +38,9 @@
         this.headX = G.W / 2;
         this.headY = -100;
         this.radius = 25;
-        this.amplitude = route.amplitude; // 跟随关卡配置
-        this.frequency = route.frequency; // 跟随关卡配置
+        // 根据配置计算实际参数
+        this.amplitude = route.amplitudeRatio * (G.W / 2); // 摆幅占屏幕半宽比例
+        this.frequency = (2 * Math.PI) / route.period;     // 根据周期长度计算频率
         this.phaseShift = route.phaseShift;
         this.collisionCooldown = 0;
         this.minY = route.minY;

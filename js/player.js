@@ -6,7 +6,7 @@
         G.player = {
             x: G.W / 2,
             y: G.H - 80,
-            radius: 30,
+            radius: 15,
             hp: 1000,
             maxHp: 1000,
             damage: 10,
