@@ -53,6 +53,7 @@
         G.angels = [];
         G.particles = [];
         G.damageNums = [];
+        G.drops = [];
         G.score = 0;
         G.time = 0;
         G.screenShake = 0;

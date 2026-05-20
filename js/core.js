@@ -35,6 +35,7 @@
     G.angels = [];
     G.particles = [];
     G.damageNums = [];
+    G.drops = []; // XP 掉落物
     G.player = null;
     G.boss = null;
 
@@ -49,6 +50,7 @@
         if (G.bulletUpdate) G.bulletUpdate();
         if (G.angelUpdate) G.angelUpdate();
         if (G.effectsUpdate) G.effectsUpdate();
+        if (G.dropUpdate) G.dropUpdate();
         if (G.uiUpdate) G.uiUpdate();
 
         if (G.player && G.player.xp >= G.player.xpToNext) {
@@ -94,6 +96,7 @@
         if (G.angelDraw) G.angelDraw();
         if (G.playerDraw) G.playerDraw();
         if (G.bulletDraw) G.bulletDraw();
+        if (G.dropDraw) G.dropDraw();
         if (G.effectsDraw) G.effectsDraw();
 
         G.ctx.restore();
@@ -107,5 +110,67 @@
 
     G.start = function() {
         loop();
+    };
+
+    // ==================== 掉落物系统 ====================
+    G.dropUpdate = function() {
+        for (var i = G.drops.length - 1; i >= 0; i--) {
+            var d = G.drops[i];
+            
+            // 存在时间
+            d.life--;
+            if (d.life <= 0) {
+                G.drops.splice(i, 1);
+                continue;
+            }
+
+            // 玩家拾取检测
+            if (G.player) {
+                var dx = d.x - G.player.x;
+                var dy = d.y - G.player.y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // 吸附范围大一点，手感好
+                if (dist < G.player.radius + 20) {
+                    G.player.xp += d.value;
+                    G.drops.splice(i, 1);
+                    continue;
+                }
+                
+                // 慢速飘动（增加时间感）
+                d.y += 0.5; 
+            }
+        }
+    };
+
+    G.dropDraw = function() {
+        var ctx = G.ctx;
+        for (var i = 0; i < G.drops.length; i++) {
+            var d = G.drops[i];
+            
+            // 呼吸效果
+            var scale = 1 + Math.sin(G.time * 0.1) * 0.1;
+            var size = 12 * scale;
+            
+            // 发光
+            ctx.save();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = d.color;
+            ctx.fillStyle = d.color;
+            
+            // 画正方形
+            ctx.translate(d.x, d.y);
+            ctx.rotate(G.time * 0.05); // 旋转
+            ctx.fillRect(-size/2, -size/2, size, size);
+            
+            // 内部文字
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('XP', 0, 0);
+            
+            ctx.restore();
+        }
     };
 })();

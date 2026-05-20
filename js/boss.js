@@ -202,13 +202,21 @@
             G.showDamage(this.segments[segIndex].x, this.segments[segIndex].y, dmg, Math.random() < 0.2);
             // 段HP归零，移除该段，后面的段自动前移
             if (this.segments[segIndex].hp <= 0) {
-                G.spawnParticles(this.segments[segIndex].x, this.segments[segIndex].y, '#00ff00', 8);
+                var seg = this.segments[segIndex];
+                var dropX = seg.x;
+                var dropY = seg.y;
+                
+                G.spawnParticles(dropX, dropY, '#00ff00', 8);
                 this.segments.splice(segIndex, 1);
                 G.score += 10;
-                // 打蛇段给 XP，满级触发3选1
-                if (G.player) {
-                    G.player.xp += 25;
-                }
+                // 掉落 XP 格子
+                G.drops.push({
+                    x: dropX,
+                    y: dropY,
+                    value: 25,
+                    life: 300, // 5秒消失
+                    color: '#00ff88'
+                });
                 // 打掉一段，整体后退
                 this.retreat();
             }
