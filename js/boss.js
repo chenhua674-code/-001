@@ -64,10 +64,11 @@
         var moveAmount = this.speed * (dt / 16.667);
         this.headY += moveAmount;
         
-        // 宽S型走位 = headY驱动正弦波 + 小时间偏移
-        this.headX = G.W / 2 + Math.sin(
-            this.headY * this.frequency + G.time * 0.005 + this.phaseShift
-        ) * this.amplitude;
+        // 宽S型走位 - 多频段叠加，更像真实蛇形
+        var t = G.time * 0.001; // 秒
+        this.headX = G.W / 2 + 
+            Math.sin(this.headY * this.frequency + this.phaseShift) * this.amplitude * 0.7 +
+            Math.sin(this.headY * this.frequency * 0.5 + t * 0.8) * this.amplitude * 0.3;
 
         // 左右边界
         if (this.headX < this.radius) this.headX = this.radius;
@@ -209,6 +210,10 @@
                 G.spawnParticles(this.segments[segIndex].x, this.segments[segIndex].y, '#00ff00', 8);
                 this.segments.splice(segIndex, 1);
                 G.score += 10;
+                // 打蛇段给 XP，满级触发3选1
+                if (G.player) {
+                    G.player.xp += 25;
+                }
                 // 打掉一段，整体后退
                 this.retreat();
             }
