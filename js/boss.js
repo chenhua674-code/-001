@@ -3,18 +3,18 @@
     var G = window.G;
 
     // 蛇路线配置 - 每关不同走位
-    // 幅度大 S 型：高速 + 大摆幅 + 舒展的波浪
+    // 修复：降低速度，让玩家有时间输出
     var ROUTES = [
-        // 关卡1：大幅 S 弯 (速度快 + 摆幅极大)
-        { pixelsPerSecond: 50, amplitude: 350, frequency: 0.015, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡1：大幅 S 弯（速度慢 + 摆幅大，给玩家输出时间）
+        { pixelsPerSecond: 25, amplitude: 350, frequency: 0.015, phaseShift: 0, minY: -200, maxY: null },
         // 关卡2：稍快，更紧凑
-        { pixelsPerSecond: 60, amplitude: 380, frequency: 0.018, phaseShift: Math.PI, minY: -200, maxY: null },
+        { pixelsPerSecond: 30, amplitude: 380, frequency: 0.018, phaseShift: Math.PI, minY: -200, maxY: null },
         // 关卡3：快速，疯狂扭动
-        { pixelsPerSecond: 70, amplitude: 400, frequency: 0.020, phaseShift: Math.PI / 2, minY: -200, maxY: null },
-        // 关卡4：高速，变态
-        { pixelsPerSecond: 80, amplitude: 420, frequency: 0.022, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡5：极速，鬼畜
-        { pixelsPerSecond: 90, amplitude: 450, frequency: 0.025, phaseShift: Math.PI / 3, minY: -200, maxY: null },
+        { pixelsPerSecond: 35, amplitude: 400, frequency: 0.020, phaseShift: Math.PI / 2, minY: -200, maxY: null },
+        // 关卡4：高速，有挑战性
+        { pixelsPerSecond: 40, amplitude: 420, frequency: 0.022, phaseShift: 0, minY: -200, maxY: null },
+        // 关卡5：极速，考验操作
+        { pixelsPerSecond: 45, amplitude: 450, frequency: 0.025, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
     var currentRoute = 0;
@@ -33,7 +33,9 @@
         this.segments = [];
         this.segmentCount = 100;
         this.segHp = (level + 1) * 20; // 关1=20, 关2=40, 关3=60...
+        // 修复：maxHp 应该等于所有段血量总和
         this.maxHp = this.segHp * this.segmentCount;
+        this.hp = this.maxHp; // 初始满血
         this.headX = G.W / 2;
         this.headY = -100;
         this.radius = 25;
@@ -48,8 +50,9 @@
         this._pixelsPerSecond = route.pixelsPerSecond;
         this._lastTime = performance.now();
 
+        // 修复：每段初始血量统一为 segHp，不是 (i+1)*20
         for (var i = 0; i < this.segmentCount; i++) {
-            this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
+            this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: this.segHp });
         }
     }
 
@@ -126,9 +129,11 @@
         this.headY = -100;
         this.headX = G.W / 2;
         this.segments = [];
+        // 修复：重置时血量也要统一
         for (var i = 0; i < this.segmentCount; i++) {
-            this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: (i + 1) * 20 });
+            this.segments.push({ x: G.W / 2, y: -100 - i * 10, hp: this.segHp });
         }
+        this.hp = this.maxHp; // 重置总血量
     };
 
     SnakeBoss.prototype.draw = function() {
@@ -202,7 +207,10 @@
         if (segIndex !== undefined && segIndex >= 0 && segIndex < this.segments.length) {
             this.segments[segIndex].hp -= dmg;
             G.showDamage(this.segments[segIndex].x, this.segments[segIndex].y, dmg, Math.random() < 0.2);
-            // 段HP归零，移除该段，后面的段自动前移
+            // 更新总血量
+            this.hp = Math.max(0, this.hp - dmg);
+            
+            // 段HP归零，移除该段
             if (this.segments[segIndex].hp <= 0) {
                 var seg = this.segments[segIndex];
                 var dropX = seg.x;
@@ -219,19 +227,15 @@
                     life: 300, // 5秒消失
                     color: '#00ff88'
                 });
-                // 打掉一段，整体后退
+                // 打掉一段，整体后退（空函数，只留特效）
                 this.retreat();
             }
         }
 
-        // 总HP更新
-        var totalHp = 0;
-        for (var k = 0; k < this.segments.length; k++) totalHp += this.segments[k].hp;
-        this.hp = totalHp;
-
         G.screenShake = Math.min(10, G.screenShake + 1);
         G.spawnParticles(this.headX, this.headY, '#00ff00', 3);
 
+        // 修复：血条显示基于 this.hp / this.maxHp
         var hpFill = document.getElementById('boss-hp-fill');
         if (hpFill) hpFill.style.width = (Math.max(0, this.hp / this.maxHp) * 100) + '%';
 
