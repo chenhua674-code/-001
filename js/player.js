@@ -6,23 +6,23 @@
         G.player = {
             x: G.W / 2,
             y: G.H - 80,
-            radius: 15,
+            radius: 30,
             hp: 1000,
             maxHp: 1000,
-            damage: 10,
+            damage: 50,
             fireRate: 25,
             fireTimer: 0,
             level: 1,
             xp: 0,
             xpToNext: 100,
-            bulletCount: 1,       // 初始单发
-            pierce: 1,            // 初始穿透
-            bulletSpeed: 14,      // 子弹速度
-            bulletSize: 4,        // 子弹大小
-            critRate: 0,          // 暴击率
+            bulletCount: 1,
+            pierce: 0,
+            bulletSpeed: 14,
+            bulletSize: 4,
+            critRate: 0,
             hasAngel: false,
             angelCount: 0,
-            skills: []            // 技能列表
+            skills: []
         };
 
         // 初始技能：多发弹 + 穿透弹
@@ -42,19 +42,17 @@
         // 边界限制
         G.player.x = Math.max(G.player.radius, Math.min(G.W - G.player.radius, G.player.x));
         
-        // 玩家不能越过防守线（Y轴限制在防守线下方）
+        // 玩家不能越过防守线
         var defenseLineY = G.H * 0.75;
         G.player.y = Math.max(defenseLineY, Math.min(G.H - G.player.radius, G.player.y));
-        // 防守线Y
         G.defenseLineY = defenseLineY;
 
-        // 自动射击 - 垂直向上发射，保证直线
+        // 自动射击 - 瞄准蛇BOSS头部（原版逻辑）
         if (G.player.fireTimer > 0) {
             G.player.fireTimer--;
         } else {
             G.player.fireTimer = G.player.fireRate;
             
-            // 固定发射位置和方向
             var px = G.player.x;
             var py = G.player.y;
             var speed = G.player.bulletSpeed || 14;
@@ -64,15 +62,20 @@
             var isCrit = Math.random() < (G.player.critRate || 0);
             var dmg = isCrit ? G.player.damage * 2 : G.player.damage;
             
+            // 瞄准蛇头（原版）
+            var targetX = G.boss ? G.boss.headX : px;
+            var targetY = G.boss ? G.boss.headY : 0;
+            var baseAngle = Math.atan2(targetY - py, targetX - px);
+            
             // 多发弹（扇形分布）
             var count = G.player.bulletCount || 1;
-            var spread = count > 1 ? 0.3 : 0;
-            var startAngle = -(count - 1) * spread / 2;
+            var spread = count > 1 ? 0.25 : 0;
+            var startAngle = baseAngle - (count - 1) * spread / 2;
             
             for (var i = 0; i < count; i++) {
                 var angle = startAngle + i * spread;
-                var vx = Math.sin(angle) * speed;
-                var vy = -Math.cos(angle) * speed;
+                var vx = Math.cos(angle) * speed;
+                var vy = Math.sin(angle) * speed;
                 
                 G.fireSkill({
                     x: px,
