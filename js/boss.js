@@ -1,20 +1,13 @@
 // ==================== 蛇BOSS boss.js ====================
+// ==================== 蛇BOSS boss.js ====================
 (function() {
     var G = window.G;
 
-    // 蛇路线配置 - 每关不同走位
-    // 原版：speed 1.5px/frame ≈ 90px/s，但原版蛇是用 IK 跟随，不是正弦波
-    // 我们的正弦波版本需要更慢的速度才能匹配原版感觉
     var ROUTES = [
-        // 关卡1：大幅 S 弯
         { pixelsPerSecond: 18, amplitude: 350, frequency: 0.012, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡2：稍快
         { pixelsPerSecond: 22, amplitude: 380, frequency: 0.015, phaseShift: Math.PI, minY: -200, maxY: null },
-        // 关卡3：快速
         { pixelsPerSecond: 26, amplitude: 400, frequency: 0.018, phaseShift: Math.PI / 2, minY: -200, maxY: null },
-        // 关卡4：高速
         { pixelsPerSecond: 30, amplitude: 420, frequency: 0.020, phaseShift: 0, minY: -200, maxY: null },
-        // 关卡5：极速
         { pixelsPerSecond: 35, amplitude: 450, frequency: 0.022, phaseShift: Math.PI / 3, minY: -200, maxY: null },
     ];
 
@@ -33,10 +26,9 @@
 
         this.segments = [];
         this.segmentCount = 100;
-        // 原版：蛇总血量 5000，每关+2000
-        this.totalHp = 5000 + level * 2000;
-        this.maxHp = this.totalHp;
-        this.hp = this.totalHp;
+        this.segHp = 50; // 每段血量，显示在格子上
+        this.maxHp = this.segHp * this.segmentCount;
+        this.hp = this.maxHp;
         this.headX = G.W / 2;
         this.headY = -100;
         this.radius = 25;
@@ -49,12 +41,10 @@
         this.defenseLineY = G.defenseLineY || G.H * 0.75;
         this._pixelsPerSecond = route.pixelsPerSecond;
         this._lastTime = performance.now();
-        this.retreatAmount = 0; // 受击后退量
-        this.retreatDecay = 0.95; // 后退恢复速度
+        this.retreatAmount = 0; 
 
-        // 原版蛇身：只是位置记录，没有独立血量
         for (var i = 0; i < this.segmentCount; i++) {
-            this.segments.push({ x: G.W / 2, y: -100 - i * this.segSpacing });
+            this.segments.push({ x: G.W / 2, y: -100 - i * this.segSpacing, hp: this.segHp });
         }
     }
 
@@ -64,43 +54,37 @@
         this._lastTime = now;
         if (dt > 0.1) dt = 0.1;
 
-        // 受击后退效果：蛇整体向上退
         if (this.retreatAmount > 0) {
-            this.retreatAmount *= this.retreatDecay;
+            this.retreatAmount *= 0.92;
             if (this.retreatAmount < 0.5) this.retreatAmount = 0;
         }
 
         this.headY += this._pixelsPerSecond * dt;
 
-        // S型走位
         this.headX = G.W / 2 + Math.sin(
             this.headY * this.frequency + this.phaseShift
         ) * this.amplitude;
 
-        // 左右边界
         if (this.headX < this.radius) this.headX = this.radius;
         if (this.headX > G.W - this.radius) this.headX = G.W - this.radius;
 
-        // 失败判定：蛇头越过防守线
         if (this.headY > this.defenseLineY) {
             G.gameOver();
             return;
         }
 
-        // 身体跟随（波浪行进算法）
         var basePhase = this.phaseShift;
         var phaseLag = this.frequency * this.segSpacing * 0.5;
-        var retreatY = this.retreatAmount; // 受击后退偏移
+        var retreatY = this.retreatAmount; 
 
         for (var k = 0; k < this.segments.length; k++) {
             var seg = this.segments[k];
-            seg.y = this.headY - k * this.segSpacing - retreatY * Math.exp(-k * 0.05); // 越靠近头部退得越多
+            seg.y = this.headY - k * this.segSpacing - retreatY * Math.exp(-k * 0.05);
             seg.x = G.W / 2 + Math.sin(
                 seg.y * this.frequency + basePhase + k * phaseLag
             ) * this.amplitude;
         }
 
-        // 碰撞玩家
         if (this.headY > G.player.y - 50 && G.player && this.collisionCooldown <= 0) {
             var d = Math.sqrt(
                 (this.headX - G.player.x) * (this.headX - G.player.x) +
@@ -117,7 +101,6 @@
         }
         if (this.collisionCooldown > 0) this.collisionCooldown--;
 
-        // 超出屏幕底部，重置到顶部（进入下一关）
         if (this.headY > G.H + 200) {
             this.resetToTop();
         }
@@ -132,39 +115,49 @@
         this.frequency = route.frequency;
         this.phaseShift = route.phaseShift;
         this._pixelsPerSecond = route.pixelsPerSecond;
-        // 重置血量（原版每关+2000）
-        this.totalHp = 5000 + bossLevel * 2000;
-        this.maxHp = this.totalHp;
-        this.hp = this.totalHp;
         this.retreatAmount = 0;
+        this.segmentCount = 100;
+        this.segHp = 50 + bossLevel * 20; 
+        this.maxHp = this.segHp * this.segmentCount;
+        this.hp = this.maxHp;
         this.segments = [];
         for (var i = 0; i < this.segmentCount; i++) {
-            this.segments.push({ x: G.W / 2, y: -100 - i * this.segSpacing });
+            this.segments.push({ x: G.W / 2, y: -100 - i * this.segSpacing, hp: this.segHp });
         }
-        // 更新 BOSS 名称
         var bossNameEl = document.getElementById('boss-name');
         if (bossNameEl) bossNameEl.textContent = '🐉 变异病毒长龙 Lv.' + (bossLevel + 1);
     };
 
     SnakeBoss.prototype.draw = function() {
         var ctx = G.ctx;
-        // 画蛇身段（原版风格：半透明肉块 + 闪烁效果）
-        for (var i = this.segments.length - 1; i >= 0; i--) {
+        for (var i = 0; i < this.segments.length; i++) {
             var s = this.segments[i];
-            var r = this.radius * (1 - (i / this.segmentCount) * 0.6); 
-            if (r < 5) r = 5;
+            var r = this.radius * (1 - (i / 100) * 0.3);
+            if (r < 10) r = 10;
             
-            var flicker = Math.sin(G.time * 0.2 + i * 0.1) * 0.1;
+            var hpRatio = s.hp / this.segHp;
+            var segColor = hpRatio > 0.5 ? '#44cc44' : (hpRatio > 0.2 ? '#ffaa00' : '#ff4444');
+            
             ctx.beginPath();
             ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(100, 255, 100, ' + (0.6 + flicker) + ')';
+            ctx.fillStyle = segColor;
             ctx.fill();
             ctx.strokeStyle = '#00ff00';
             ctx.lineWidth = 2;
             ctx.stroke();
+            
+            // 段内显示血量数字
+            ctx.fillStyle = '#fff';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.font = 'bold ' + Math.max(12, r * 0.8) + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeText(Math.max(0, Math.ceil(s.hp)), s.x, s.y);
+            ctx.fillText(Math.max(0, Math.ceil(s.hp)), s.x, s.y);
         }
 
-        // 头部（原版：触手 + 眼睛）
+        // 头部
         ctx.save();
         ctx.translate(this.headX, this.headY);
         for (var t = 0; t < 6; t++) {
@@ -200,21 +193,38 @@
     };
 
     SnakeBoss.prototype.takeDamage = function(dmg, segIndex) {
-        this.hp -= dmg;
-        G.showDamage(this.headX, this.headY - 30, dmg, Math.random() < 0.2);
-        
-        // 受击后退效果
-        this.retreatAmount = Math.min(this.retreatAmount + 30, 80);
+        // 打特定段
+        if (segIndex !== undefined && segIndex >= 0 && segIndex < this.segments.length) {
+            this.segments[segIndex].hp -= dmg;
+            G.showDamage(this.segments[segIndex].x, this.segments[segIndex].y, dmg, Math.random() < 0.2);
+            
+            // 打掉整段
+            if (this.segments[segIndex].hp <= 0) {
+                var seg = this.segments[segIndex];
+                G.spawnParticles(seg.x, seg.y, '#00ff00', 8);
+                this.segments.splice(segIndex, 1);
+                G.score += 10;
+                this.retreatAmount = 40; // 打掉段时触发后退
+                G.drops.push({ x: seg.x, y: seg.y, value: 25, life: 300, color: '#00ff88' });
+                // 更新总血量（移除段也扣血）
+                this.hp = Math.max(0, this.hp - this.segHp);
+            } else {
+                this.hp = Math.max(0, this.hp - dmg);
+            }
+        } else {
+            // 打头部
+            this.hp = Math.max(0, this.hp - dmg);
+            G.showDamage(this.headX, this.headY - 30, dmg, Math.random() < 0.2);
+            this.retreatAmount = Math.min(this.retreatAmount + 5, 20); // 打头部轻微后退
+        }
 
         G.screenShake = Math.min(10, G.screenShake + 1);
         G.spawnParticles(this.headX, this.headY, '#00ff00', 3);
 
-        // 更新血条
         var hpFill = document.getElementById('boss-hp-fill');
         if (hpFill) hpFill.style.width = (Math.max(0, this.hp / this.maxHp) * 100) + '%';
 
-        // BOSS 死亡
-        if (this.hp <= 0) {
+        if (this.segments.length === 0) {
             G.score += 1000;
             G.spawnParticles(this.headX, this.headY, '#00ff00', 100);
             var self = this;

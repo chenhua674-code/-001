@@ -9,8 +9,8 @@
             radius: 30,
             hp: 1000,
             maxHp: 1000,
-            damage: 50,
-            fireRate: 25,
+            damage: 100, // 提升基础伤害
+            fireRate: 15, // 提升射速
             fireTimer: 0,
             level: 1,
             xp: 0,
@@ -25,7 +25,6 @@
             skills: []
         };
 
-        // 初始技能：多发弹 + 穿透弹
         G.player.skills.push('多发弹');
         G.player.skills.push('穿透弹');
     };
@@ -47,7 +46,7 @@
         G.player.y = Math.max(defenseLineY, Math.min(G.H - G.player.radius, G.player.y));
         G.defenseLineY = defenseLineY;
 
-        // 自动射击 - 瞄准蛇BOSS头部（原版逻辑）
+        // 自动射击 - 垂直向上发射
         if (G.player.fireTimer > 0) {
             G.player.fireTimer--;
         } else {
@@ -62,15 +61,10 @@
             var isCrit = Math.random() < (G.player.critRate || 0);
             var dmg = isCrit ? G.player.damage * 2 : G.player.damage;
             
-            // 瞄准蛇头（原版）
-            var targetX = G.boss ? G.boss.headX : px;
-            var targetY = G.boss ? G.boss.headY : 0;
-            var baseAngle = Math.atan2(targetY - py, targetX - px);
-            
-            // 多发弹（扇形分布）
+            // 多发弹（扇形分布，中心垂直向上）
             var count = G.player.bulletCount || 1;
             var spread = count > 1 ? 0.25 : 0;
-            var startAngle = baseAngle - (count - 1) * spread / 2;
+            var startAngle = -Math.PI / 2 - (count - 1) * spread / 2;
             
             for (var i = 0; i < count; i++) {
                 var angle = startAngle + i * spread;

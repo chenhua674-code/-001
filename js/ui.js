@@ -35,8 +35,8 @@
         G.player.hp = G.player.maxHp;
         G.player.level = 1;
         G.player.xp = 0;
-        G.player.damage = 50;
-        G.player.fireRate = 25;
+        G.player.damage = 100;
+        G.player.fireRate = 15;
         G.player.bulletCount = 1;
         G.player.pierce = 0;
         G.player.bulletSpeed = 14;
