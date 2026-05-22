@@ -80,7 +80,7 @@ window.addEventListener('resize', resize);
 resize();
 
 // 游戏状态
-let G = {
+console.log("Init Game"); let G = {
     state: 'play', // play, skill, dead
     time: 0, frame: 0, score: 0,
     shake: 0, wave: 0,
@@ -460,11 +460,11 @@ function loop() {
 document.getElementById('restart-btn').onclick = () => {
     G = { state:'play', time:0, frame:0, score:0, shake:0, wave:1, bullets:[], particles:[], nums:[], dragon:new Dragon(1), p:new Player() };
     document.getElementById('game-over').style.display = 'none';
-    loop();
+    console.log("Loop starting"); loop();
 };
 
 // 启动
-loop();
+console.log("Loop starting"); loop();
 </script>
 </body>
 </html>
