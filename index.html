@@ -6,222 +6,112 @@
 <title>看谁能打过 - 弹射打龙</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'PingFang SC','Microsoft YaHei',sans-serif;touch-action:none}
+body{background:#000;overflow:hidden;touch-action:none}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;font-family:sans-serif;color:#fff}
+#score{position:absolute;top:10px;left:10px;font-size:20px}
+#hp{position:absolute;bottom:10px;left:10%;width:80%;height:10px;background:#333}
+#hp-fill{height:100%;width:100%;background:#0f0}
 canvas{display:block}
-#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
-#hud{display:flex;justify-content:space-between;padding:8px 12px;color:#fff;font-size:14px;text-shadow:0 2px 4px #000}
-#boss-area{position:absolute;top:30px;left:0;width:100%;text-align:center;pointer-events:none}
-#boss-name{color:#ff5555;font-size:14px;font-weight:bold;text-shadow:0 0 5px red}
-#boss-hp-bg{width:80%;height:10px;background:#333;border:1px solid #555;border-radius:5px;margin:2px auto;overflow:hidden}
-#boss-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#f00,#f80);transition:width .1s}
-#player-hp-area{position:absolute;bottom:10px;left:10%;width:80%;height:12px;background:#222;border:1px solid #444;border-radius:6px;overflow:hidden}
-#player-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#0f8,#0a5);transition:width .1s}
-#player-hp-text{position:absolute;top:0;width:100%;text-align:center;color:#fff;font-size:10px;line-height:12px}
-#wave-msg{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;font-weight:bold;text-shadow:0 0 10px #0ff;opacity:0;pointer-events:none;transition:opacity .5s}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="ui">
-  <div id="hud">
-    <span>💎 <span id="score">0</span></span>
-    <span>⏱️ <span id="time">00:00</span></span>
-  </div>
-  <div id="boss-area">
-    <div id="boss-name">🐉 变异病毒长龙</div>
-    <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
-  </div>
-  <div id="player-hp-area"><div id="player-hp-fill"></div><div id="player-hp-text">1000/1000</div></div>
-  <div id="wave-msg"></div>
+    <div id="score">Score: 0</div>
+    <div id="hp"><div id="hp-fill"></div></div>
 </div>
-
 <script>
-'use strict';
-alert('Script Loaded');
-window.C = document.getElementById('c');
-window.X = window.C.getContext('2d');
-window.W = window.innerWidth;
-window.H = window.innerHeight;
-alert('Init OK: ' + window.W + 'x' + window.H);
+var c = document.getElementById('c');
+var x = c.getContext('2d');
+var w, h;
 
 function resize() {
-    W = C.width = window.innerWidth;
-    H = C.height = window.innerHeight;
-    if (P) P.y = H - 80;
+    w = c.width = window.innerWidth;
+    h = c.height = window.innerHeight;
 }
+resize();
 window.addEventListener('resize', resize);
 
-// 游戏状态
-const Game = {
-    time: 0, score: 0, shake: 0,
-    bullets: [], particles: [], nums: [],
-    dragon: null,
-    p: { x: W/2, y: H-80, r: 20, hp: 1000, maxHp: 1000, dmg: 40, rate: 15, timer: 0 }
-};
+var p = { x: w/2, y: h-50, r: 20, hp: 100, maxHp: 100 };
+var bullets = [];
+var boss = { x: w/2, y: 100, r: 30, hp: 1000, maxHp: 1000, alive: true, segs: [] };
 
-let MX = W / 2;
-C.addEventListener('mousemove', e => MX = e.clientX);
-C.addEventListener('touchmove', e => { if(e.touches[0]) MX = e.touches[0].clientX; }, {passive:true});
+for(var i=0; i<20; i++) boss.segs.push({x:w/2, y:100-i*10, r:20, hp:100, hit:0});
 
-// Dragon Logic
-function spawnDragon(wave) {
-    Game.dragon = {
-        alive: true, wave: wave,
-        headX: W/2, headY: 80, r: 25,
-        angle: 0, spd: 1.5,
-        segs: [], hp: 0, maxHp: 0
-    };
-    let count = 30 + wave * 5;
-    for(let i=0; i<count; i++) {
-        Game.dragon.segs.push({
-            x: W/2, y: 80 - i*12,
-            r: Math.max(8, 25 - i*0.3),
-            hp: 100 + wave*50, maxHp: 100 + wave*50,
-            hit: 0
-        });
-    }
-    Game.dragon.maxHp = count * (100 + wave*50);
-    Game.dragon.hp = Game.dragon.maxHp;
-    updateUI();
-}
+var mx = w/2;
+c.addEventListener('mousemove', e => mx = e.clientX);
+c.addEventListener('touchmove', e => { if(e.touches[0]) mx = e.touches[0].clientX; }, {passive:true});
 
-spawnDragon(1);
-
-function updateUI() {
-    document.getElementById('score').textContent = Game.score;
-    let m = Math.floor(Game.time/3600), s = Math.floor(Game.time/60)%60;
-    document.getElementById('time').textContent = `${m}:${s<10?'0':''}${s}`;
-    
-    if (Game.dragon) {
-        document.getElementById('boss-hp-fill').style.width = (Game.dragon.hp / Game.dragon.maxHp * 100) + '%';
-    }
-    document.getElementById('player-hp-fill').style.width = (Game.p.hp / Game.p.maxHp * 100) + '%';
-    document.getElementById('player-hp-text').textContent = `${Math.floor(Game.p.hp)}/${Game.p.maxHp}`;
-}
-
-// Main Loop
 function loop() {
-    Game.time++;
+    // Update Player
+    p.x += (mx - p.x) * 0.1;
     
-    // Player Update
-    let dx = MX - Game.p.x;
-    Game.p.x += dx * 0.12;
-    Game.p.x = Math.max(Game.p.r, Math.min(W - Game.p.r, Game.p.x));
+    // Fire
+    if (Math.random() < 0.1) {
+        bullets.push({x: p.x, y: p.y, vx: 0, vy: -10, life: 100});
+    }
     
-    // Shoot
-    if (Game.p.timer-- <= 0) {
-        Game.p.timer = Game.p.rate;
-        // Fire bullet
-        Game.bullets.push({
-            x: Game.p.x, y: Game.p.y - 20,
-            vx: 0, vy: -12,
-            dmg: Game.p.dmg, pierce: 0, bounce: 3, life: 300,
-            trail: []
-        });
-    }
-
-    // Dragon Update
-    if (Game.dragon && Game.dragon.alive) {
-        Game.dragon.angle += Game.dragon.spd * 0.02;
-        Game.dragon.headX = W/2 + Math.sin(Game.dragon.angle) * (W * 0.35);
-        Game.dragon.headY = 80 + Math.sin(Game.time * 0.01) * 40;
-
-        // Segments follow
-        let last = {x: Game.dragon.headX, y: Game.dragon.headY};
-        for (let s of Game.dragon.segs) {
-            let dx = last.x - s.x, dy = last.y - s.y;
-            let d = Math.sqrt(dx*dx + dy*dy);
-            if (d > 12) {
-                let ratio = 12/d;
-                s.x = last.x - dx*ratio;
-                s.y = last.y - dy*ratio;
-            }
-            last = {x:s.x, y:s.y};
-            if(s.hit>0) s.hit--;
-        }
-
-        // Hit Player
-        let pdx = Game.dragon.headX - Game.p.x, pdy = Game.dragon.headY - Game.p.y;
-        if (Math.sqrt(pdx*pdx + pdy*pdy) < Game.dragon.r + Game.p.r) {
-            Game.p.hp -= 50;
-            Game.shake = 10;
-            if (Game.p.hp <= 0) { Game.p.hp = 0; }
-        }
-    }
-
-    // Bullet Update
-    for (let i = Game.bullets.length - 1; i >= 0; i--) {
-        let b = Game.bullets[i];
+    // Update Bullets
+    for (var i = bullets.length - 1; i >= 0; i--) {
+        var b = bullets[i];
         b.x += b.vx; b.y += b.vy; b.life--;
-        b.trail.push({x:b.x, y:b.y, life:8});
-
+        
         // Bounce
-        if (b.x < 0 || b.x > W) { b.vx *= -1; b.bounce--; }
-        if (b.y < 0 || b.y > H) { b.vy *= -1; b.bounce--; }
-        if (b.life <= 0 || b.bounce < 0) { Game.bullets.splice(i, 1); continue; }
-
-        // Hit Dragon
-        if (Game.dragon && Game.dragon.alive) {
-            for (let s of Game.dragon.segs) {
-                if (s.hp <= 0) continue;
-                let dx = b.x - s.x, dy = b.y - s.y;
-                if (Math.sqrt(dx*dx + dy*dy) < s.r + 5) {
-                    s.hp -= b.dmg;
-                    Game.dragon.hp -= b.dmg;
-                    s.hit = 5;
-                    b.pierce--;
-                    if (b.pierce < 0) { Game.bullets.splice(i, 1); }
-                    
-                    if (Game.dragon.hp <= 0) {
-                        Game.dragon.alive = false;
-                        Game.score += 500;
-                        Game.dragon.hp = 0;
-                        // Respawn
-                        setTimeout(() => spawnDragon(Game.dragon.wave + 1), 1000);
+        if (b.x < 0 || b.x > w) b.vx *= -1;
+        if (b.y < 0) b.vy *= -1;
+        
+        // Hit Boss
+        if (boss.alive) {
+            for (var s of boss.segs) {
+                var d = Math.sqrt((b.x-s.x)**2 + (b.y-s.y)**2);
+                if (d < s.r + 5) {
+                    s.hp -= 10; boss.hp -= 10; s.hit = 5;
+                    b.life = 0;
+                    if (boss.hp <= 0) {
+                        boss.hp = 0;
+                        boss.alive = false;
+                        setTimeout(function(){ boss.alive=true; boss.hp=1000; }, 1000);
                     }
-                    break;
                 }
             }
         }
+        
+        if (b.life <= 0) bullets.splice(i, 1);
     }
-
-    // Render
-    X.fillStyle = '#050510'; X.fillRect(0,0,W,H);
-    X.save();
-    if(Game.shake>0) { X.translate((Math.random()-.5)*Game.shake, (Math.random()-.5)*Game.shake); Game.shake*=.9; }
     
-    // Grid
-    X.strokeStyle = 'rgba(255,255,255,0.05)';
-    for(let i=0; i<W; i+=50){ X.beginPath(); X.moveTo(i,0); X.lineTo(i,H); X.stroke(); }
+    // Draw
+    x.fillStyle = '#111'; x.fillRect(0,0,w,h);
     
-    // Dragon
-    if (Game.dragon) {
-        for (let i=Game.dragon.segs.length-1; i>=0; i--) {
-            let s = Game.dragon.segs[i];
-            if (s.hp <= 0) continue;
-            X.beginPath(); X.arc(s.x, s.y, s.r, 0, Math.PI*2);
-            X.fillStyle = s.hit > 0 ? '#fff' : '#0f0';
-            X.fill();
+    // Boss
+    if (boss.alive) {
+        for (var s of boss.segs) {
+            x.fillStyle = s.hit > 0 ? '#fff' : '#0f0';
+            x.beginPath(); x.arc(s.x, s.y, s.r, 0, Math.PI*2); x.fill();
+            if (s.hit > 0) s.hit--;
         }
-        // Head
-        X.fillStyle = '#f00'; X.beginPath(); X.arc(Game.dragon.headX, Game.dragon.headY, Game.dragon.r, 0, Math.PI*2); X.fill();
+        // Boss Head
+        x.fillStyle = '#f00';
+        x.beginPath(); x.arc(boss.x, boss.y, boss.r, 0, Math.PI*2); x.fill();
     }
-
+    
     // Player
-    X.fillStyle = '#0ff'; X.beginPath(); X.arc(Game.p.x, Game.p.y, Game.p.r, 0, Math.PI*2); X.fill();
+    x.fillStyle = '#0ff';
+    x.beginPath(); x.arc(p.x, p.y, p.r, 0, Math.PI*2); x.fill();
     
     // Bullets
-    for (let b of Game.bullets) {
-        X.fillStyle = '#ff0'; X.beginPath(); X.arc(b.x, b.y, 4, 0, Math.PI*2); X.fill();
+    x.fillStyle = '#ff0';
+    for (var b of bullets) {
+        x.beginPath(); x.arc(b.x, b.y, 4, 0, Math.PI*2); x.fill();
     }
-
-    X.restore();
-    updateUI();
+    
+    // UI
+    document.getElementById('score').textContent = 'Score: ' + Math.floor(1000 - boss.hp);
+    document.getElementById('hp-fill').style.width = (p.hp / p.maxHp * 100) + '%';
+    
     requestAnimationFrame(loop);
 }
 
-// Start
-requestAnimationFrame(loop);
+loop();
 </script>
 </body>
 </html>
