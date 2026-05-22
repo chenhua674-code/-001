@@ -37,10 +37,12 @@ canvas{display:block}
 
 <script>
 'use strict';
-const C = document.getElementById('c');
-const X = C.getContext('2d');
-let W = window.innerWidth;
-let H = window.innerHeight;
+alert('Script Loaded');
+window.C = document.getElementById('c');
+window.X = window.C.getContext('2d');
+window.W = window.innerWidth;
+window.H = window.innerHeight;
+alert('Init OK: ' + window.W + 'x' + window.H);
 
 function resize() {
     W = C.width = window.innerWidth;
