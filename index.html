@@ -17,21 +17,6 @@ canvas{display:block}
 #player-hp-area{position:absolute;bottom:10px;left:10%;width:80%;height:12px;background:#222;border:1px solid #444;border-radius:6px;overflow:hidden}
 #player-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#0f8,#0a5);transition:width .1s}
 #player-hp-text{position:absolute;top:0;width:100%;text-align:center;color:#fff;font-size:10px;line-height:12px}
-#xp-area{position:absolute;bottom:26px;left:10%;width:80%;height:6px;background:#222;border-radius:3px;overflow:hidden}
-#xp-fill{height:100%;width:0%;background:#0ff;transition:width .1s}
-#buff-bar{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;gap:4px}
-.buff-item{width:22px;height:22px;background:rgba(0,0,0,.7);border:1px solid #666;border-radius:3px;text-align:center;line-height:22px;font-size:11px}
-#skill-menu{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);pointer-events:auto;backdrop-filter:blur(5px)}
-#skill-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:400px;text-align:center}
-#skill-content h2{color:#0f8;text-shadow:0 0 10px #0f8;margin-bottom:15px}
-.skill-card{background:linear-gradient(135deg,#222,#111);border:2px solid #444;color:#fff;padding:12px;margin:8px 0;border-radius:10px;display:flex;align-items:center;cursor:pointer;text-align:left}
-.skill-card:active{transform:scale(.98)}
-.s-icon{font-size:28px;margin-right:12px;flex-shrink:0}
-.s-name{color:#0ff;font-weight:bold;font-size:16px}
-.s-desc{color:#aaa;font-size:12px;margin-top:2px}
-#game-over{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#000;pointer-events:auto;flex-direction:column;justify-content:center;align-items:center;color:#fff}
-#game-over h1{color:#f33;font-size:36px;margin-bottom:10px}
-#restart-btn{padding:12px 30px;background:#f33;border:none;color:#fff;font-size:18px;border-radius:6px;cursor:pointer}
 #wave-msg{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;font-weight:bold;text-shadow:0 0 10px #0ff;opacity:0;pointer-events:none;transition:opacity .5s}
 </style>
 </head>
@@ -46,30 +31,16 @@ canvas{display:block}
     <div id="boss-name">🐉 变异病毒长龙</div>
     <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
   </div>
-  <div id="xp-area"><div id="xp-fill"></div></div>
   <div id="player-hp-area"><div id="player-hp-fill"></div><div id="player-hp-text">1000/1000</div></div>
-  <div id="buff-bar"></div>
   <div id="wave-msg"></div>
-</div>
-
-<div id="skill-menu">
-  <div id="skill-content">
-    <h2>⬆️ 升级! 选择强化</h2>
-    <div id="skills"></div>
-  </div>
-</div>
-
-<div id="game-over">
-  <h1>💀 阵亡</h1>
-  <p>分数: <span id="final-score">0</span></p>
-  <p id="restart-btn">再来一把</p>
 </div>
 
 <script>
 'use strict';
 const C = document.getElementById('c');
 const X = C.getContext('2d');
-let W, H;
+let W = window.innerWidth;
+let H = window.innerHeight;
 
 function resize() {
     W = C.width = window.innerWidth;
@@ -77,193 +48,85 @@ function resize() {
     if (P) P.y = H - 80;
 }
 window.addEventListener('resize', resize);
-resize();
 
 // 游戏状态
-console.log("Init Game"); let G = {
-    state: 'play', // play, skill, dead
-    time: 0, frame: 0, score: 0,
-    shake: 0, wave: 0,
+const Game = {
+    time: 0, score: 0, shake: 0,
     bullets: [], particles: [], nums: [],
-    dragon: null, p: null
+    dragon: null,
+    p: { x: W/2, y: H-80, r: 20, hp: 1000, maxHp: 1000, dmg: 40, rate: 15, timer: 0 }
 };
 
-// 输入
 let MX = W / 2;
 C.addEventListener('mousemove', e => MX = e.clientX);
 C.addEventListener('touchmove', e => { if(e.touches[0]) MX = e.touches[0].clientX; }, {passive:true});
 
-// 玩家类
-class Player {
-    constructor() {
-        this.x = W / 2; this.y = H - 80;
-        this.r = 20;
-        this.hp = 1000; this.maxHp = 1000;
-        this.dmg = 40;
-        this.rate = 30; this.timer = 0;
-        this.xp = 0; this.xpNext = 80; this.lv = 1;
-        this.pierce = 0; this.bounce = 1; this.count = 1; this.speed = 1;
-        this.crit = 0.05; this.critDmg = 1.5;
-        this.buffs = {slow:false, burn:false, poison:false};
+// Dragon Logic
+function spawnDragon(wave) {
+    Game.dragon = {
+        alive: true, wave: wave,
+        headX: W/2, headY: 80, r: 25,
+        angle: 0, spd: 1.5,
+        segs: [], hp: 0, maxHp: 0
+    };
+    let count = 30 + wave * 5;
+    for(let i=0; i<count; i++) {
+        Game.dragon.segs.push({
+            x: W/2, y: 80 - i*12,
+            r: Math.max(8, 25 - i*0.3),
+            hp: 100 + wave*50, maxHp: 100 + wave*50,
+            hit: 0
+        });
     }
-    update() {
-        // 移动跟随
-        let dx = MX - this.x;
-        this.x += dx * 0.12;
-        this.x = Math.max(this.r, Math.min(W - this.r, this.x));
-        
-        // 射击
-        if (this.timer-- <= 0) {
-            this.timer = this.rate;
-            this.fire();
-        }
-    }
-    fire() {
-        // 原版核心逻辑：根据子弹类型发射
-        // 这里模拟主要的弹射机制
-        let angle = -90;
-        let spread = this.count > 1 ? 0.2 : 0;
-        for (let i = 0; i < this.count; i++) {
-            let a = angle + (i - (this.count - 1) / 2) * spread;
-            let rad = a * Math.PI / 180;
-            G.bullets.push(new Bullet(
-                this.x, this.y - 20,
-                Math.cos(rad) * 10 * this.speed,
-                Math.sin(rad) * 10 * this.speed,
-                this.dmg, this.pierce, this.bounce, this.buffs
-            ));
-        }
-    }
-    draw() {
-        X.save();
-        X.translate(this.x, this.y);
-        // 核心光效
-        X.shadowBlur = 15; X.shadowColor = '#0ff';
-        X.beginPath(); X.arc(0, 0, this.r, 0, Math.PI * 2);
-        X.fillStyle = '#033'; X.fill();
-        X.strokeStyle = '#0ff'; X.lineWidth = 2; X.stroke();
-        // 旋转护盾
-        X.rotate(G.time * 0.05);
-        X.beginPath(); X.arc(0, 0, this.r + 8, 0, Math.PI * 1.5);
-        X.strokeStyle = '#fff'; X.lineWidth = 3; X.stroke();
-        X.restore();
-    }
+    Game.dragon.maxHp = count * (100 + wave*50);
+    Game.dragon.hp = Game.dragon.maxHp;
+    updateUI();
 }
 
-// 子弹类
-class Bullet {
-    constructor(x, y, vx, vy, dmg, pierce, bounce, buffs) {
-        this.x = x; this.y = y;
-        this.vx = vx; this.vy = vy;
-        this.dmg = dmg; this.pierce = pierce;
-        this.bounce = bounce; this.maxBounce = bounce;
-        this.buffs = {...buffs};
-        this.r = 4; this.life = 300;
-        this.color = '#ff0'; this.trail = [];
+spawnDragon(1);
+
+function updateUI() {
+    document.getElementById('score').textContent = Game.score;
+    let m = Math.floor(Game.time/3600), s = Math.floor(Game.time/60)%60;
+    document.getElementById('time').textContent = `${m}:${s<10?'0':''}${s}`;
+    
+    if (Game.dragon) {
+        document.getElementById('boss-hp-fill').style.width = (Game.dragon.hp / Game.dragon.maxHp * 100) + '%';
     }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life--;
-        
-        // 拖尾
-        this.trail.push({x:this.x, y:this.y, life:8});
-
-        // 墙壁反弹 (复刻原版物理)
-        let hit = false;
-        if (this.x < 0) { this.x = 0; this.vx *= -1; hit = true; }
-        if (this.x > W) { this.x = W; this.vx *= -1; hit = true; }
-        if (this.y < 0) { this.y = 0; this.vy *= -1; hit = true; }
-        if (this.y > H) { this.y = H; this.vy *= -1; hit = true; }
-
-        if (hit) {
-            this.bounce--;
-            G.addParticles(this.x, this.y, '#0ff', 3);
-        }
-
-        // 判定碰撞蛇身
-        if (G.dragon && G.dragon.alive) {
-            for (let s of G.dragon.segs) {
-                if (s.hp <= 0) continue;
-                let dx = this.x - s.x, dy = this.y - s.y;
-                if (Math.sqrt(dx*dx + dy*dy) < s.r + this.r) {
-                    // 伤害计算
-                    let isCrit = Math.random() < G.p.crit;
-                    let d = this.dmg * (isCrit ? G.p.critDmg : 1);
-                    s.hp -= d;
-                    G.dragon.hp -= d;
-                    s.hit = 5;
-                    G.addNum(s.x, s.y, Math.floor(d), isCrit);
-                    G.addParticles(s.x, s.y, '#f00', 4);
-
-                    // Buff 效果
-                    if (this.buffs.slow) G.dragon.spd *= 0.95;
-                    if (this.buffs.burn) s.dot = 20;
-
-                    this.pierce--;
-                    if (this.pierce < 0 || this.bounce < 0) { this.life = 0; }
-                    
-                    if (G.dragon.hp <= 0) G.dragonDie();
-                    break;
-                }
-            }
-        }
-
-        if (this.life <= 0 || this.bounce < 0) return false;
-        return true;
-    }
-    draw() {
-        // 画拖尾
-        for (let t of this.trail) {
-            t.life--;
-            if(t.life>0) {
-                X.globalAlpha = t.life/8 * 0.5;
-                X.fillStyle = this.color;
-                X.beginPath(); X.arc(t.x, t.y, 2, 0, Math.PI*2); X.fill();
-            }
-        }
-        X.globalAlpha = 1;
-        X.fillStyle = this.color;
-        X.beginPath(); X.arc(this.x, this.y, this.r, 0, Math.PI*2); X.fill();
-    }
+    document.getElementById('player-hp-fill').style.width = (Game.p.hp / Game.p.maxHp * 100) + '%';
+    document.getElementById('player-hp-text').textContent = `${Math.floor(Game.p.hp)}/${Game.p.maxHp}`;
 }
 
-// 蛇 BOSS 类 (复刻原版 DragonView 逻辑)
-class Dragon {
-    constructor(wave) {
-        this.wave = wave;
-        this.segs = [];
-        this.count = 30 + wave * 5;
-        this.r = 25;
-        this.spd = 1.5 + wave * 0.1;
-        this.headX = W/2; this.headY = 80;
-        this.angle = 0;
-        this.alive = true;
-        
-        // 创建蛇身
-        for(let i=0; i<this.count; i++) {
-            this.segs.push({
-                x: W/2, y: 80 - i*12,
-                r: Math.max(8, this.r - i*0.3),
-                hp: 100 + wave*50, maxHp: 100 + wave*50,
-                hit: 0
-            });
-        }
-        this.hp = this.count * (100 + wave*50);
-        this.maxHp = this.hp;
-        updateUI();
+// Main Loop
+function loop() {
+    Game.time++;
+    
+    // Player Update
+    let dx = MX - Game.p.x;
+    Game.p.x += dx * 0.12;
+    Game.p.x = Math.max(Game.p.r, Math.min(W - Game.p.r, Game.p.x));
+    
+    // Shoot
+    if (Game.p.timer-- <= 0) {
+        Game.p.timer = Game.p.rate;
+        // Fire bullet
+        Game.bullets.push({
+            x: Game.p.x, y: Game.p.y - 20,
+            vx: 0, vy: -12,
+            dmg: Game.p.dmg, pierce: 0, bounce: 3, life: 300,
+            trail: []
+        });
     }
-    update() {
-        if (!this.alive) return;
-        
-        // 蛇头 AI (正弦曲线 + 随机扰动)
-        this.angle += this.spd * 0.02;
-        this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
-        this.headY = 80 + Math.sin(G.time * 0.01) * 40;
 
-        // 蛇身跟随 (链式物理)
-        let last = {x: this.headX, y: this.headY};
-        for (let s of this.segs) {
+    // Dragon Update
+    if (Game.dragon && Game.dragon.alive) {
+        Game.dragon.angle += Game.dragon.spd * 0.02;
+        Game.dragon.headX = W/2 + Math.sin(Game.dragon.angle) * (W * 0.35);
+        Game.dragon.headY = 80 + Math.sin(Game.time * 0.01) * 40;
+
+        // Segments follow
+        let last = {x: Game.dragon.headX, y: Game.dragon.headY};
+        for (let s of Game.dragon.segs) {
             let dx = last.x - s.x, dy = last.y - s.y;
             let d = Math.sqrt(dx*dx + dy*dy);
             if (d > 12) {
@@ -275,196 +138,88 @@ class Dragon {
             if(s.hit>0) s.hit--;
         }
 
-        // 碰撞玩家
-        let dx = this.headX - G.p.x, dy = this.headY - G.p.y;
-        if (Math.sqrt(dx*dx + dy*dy) < this.r + G.p.r) {
-            G.p.hp -= 80;
-            G.shake = 10;
-            G.addNum(G.p.x, G.p.y, 80, true, '#f00');
-            if (G.p.hp <= 0) gameover();
-            updateUI();
+        // Hit Player
+        let pdx = Game.dragon.headX - Game.p.x, pdy = Game.dragon.headY - Game.p.y;
+        if (Math.sqrt(pdx*pdx + pdy*pdy) < Game.dragon.r + Game.p.r) {
+            Game.p.hp -= 50;
+            Game.shake = 10;
+            if (Game.p.hp <= 0) { Game.p.hp = 0; }
         }
     }
-    draw() {
-        if (!this.alive) return;
-        // 画身
-        for (let i=this.segs.length-1; i>=0; i--) {
-            let s = this.segs[i];
-            if (s.hp <= 0) continue;
-            X.beginPath(); X.arc(s.x, s.y, s.r, 0, Math.PI*2);
-            X.fillStyle = s.hit > 0 ? '#fff' : `hsl(${100+i*2}, 80%, 50%)`;
-            X.fill();
-            X.strokeStyle = '#005500'; X.lineWidth = 1; X.stroke();
-            // 血条
-            if (s.hp < s.maxHp) {
-                X.fillStyle = '#333'; X.fillRect(s.x-s.r, s.y-s.r-6, s.r*2, 3);
-                X.fillStyle = '#0f0'; X.fillRect(s.x-s.r, s.y-s.r-6, s.r*2*(s.hp/s.maxHp), 3);
+
+    // Bullet Update
+    for (let i = Game.bullets.length - 1; i >= 0; i--) {
+        let b = Game.bullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+        b.trail.push({x:b.x, y:b.y, life:8});
+
+        // Bounce
+        if (b.x < 0 || b.x > W) { b.vx *= -1; b.bounce--; }
+        if (b.y < 0 || b.y > H) { b.vy *= -1; b.bounce--; }
+        if (b.life <= 0 || b.bounce < 0) { Game.bullets.splice(i, 1); continue; }
+
+        // Hit Dragon
+        if (Game.dragon && Game.dragon.alive) {
+            for (let s of Game.dragon.segs) {
+                if (s.hp <= 0) continue;
+                let dx = b.x - s.x, dy = b.y - s.y;
+                if (Math.sqrt(dx*dx + dy*dy) < s.r + 5) {
+                    s.hp -= b.dmg;
+                    Game.dragon.hp -= b.dmg;
+                    s.hit = 5;
+                    b.pierce--;
+                    if (b.pierce < 0) { Game.bullets.splice(i, 1); }
+                    
+                    if (Game.dragon.hp <= 0) {
+                        Game.dragon.alive = false;
+                        Game.score += 500;
+                        Game.dragon.hp = 0;
+                        // Respawn
+                        setTimeout(() => spawnDragon(Game.dragon.wave + 1), 1000);
+                    }
+                    break;
+                }
             }
         }
-        // 画头
-        X.save(); X.translate(this.headX, this.headY);
-        X.beginPath(); X.arc(0, 0, this.r, 0, Math.PI*2);
-        let g = X.createRadialGradient(0,0,5, 0,0,this.r);
-        g.addColorStop(0, '#0f0'); g.addColorStop(1, '#030');
-        X.fillStyle = g; X.fill();
-        // 眼
-        X.fillStyle = '#f00'; X.beginPath(); X.arc(-8,-5, 5, 0, Math.PI*2); X.fill();
-        X.beginPath(); X.arc(8,-5, 5, 0, Math.PI*2); X.fill();
-        X.restore();
-    }
-}
-
-// 全局逻辑
-G.p = new Player();
-G.dragon = new Dragon(1);
-
-function updateUI() {
-    document.getElementById('score').textContent = G.score;
-    let m = Math.floor(G.time/60/60), s = Math.floor(G.time/60)%60;
-    document.getElementById('time').textContent = `${m}:${s<10?'0':''}${s}`;
-    
-    // Boss HP
-    if (G.dragon) {
-        let pct = Math.max(0, G.dragon.hp / G.dragon.maxHp * 100);
-        document.getElementById('boss-hp-fill').style.width = pct + '%';
-    }
-    // Player HP
-    let php = Math.max(0, G.p.hp / G.p.maxHp * 100);
-    document.getElementById('player-hp-fill').style.width = php + '%';
-    document.getElementById('player-hp-text').textContent = `${Math.floor(G.p.hp)}/${G.p.maxHp}`;
-    // XP
-    document.getElementById('xp-fill').style.width = (G.p.xp / G.p.xpNext * 100) + '%';
-}
-
-function gameover() {
-    G.state = 'dead';
-    document.getElementById('game-over').style.display = 'flex';
-    document.getElementById('final-score').textContent = G.score;
-}
-
-G.dragonDie = function() {
-    G.dragon.alive = false;
-    G.score += 500 + G.wave * 200;
-    G.addParticles(G.dragon.headX, G.dragon.headY, '#0f0', 30);
-    // 下一波
-    setTimeout(() => {
-        G.wave++;
-        G.dragon = new Dragon(G.wave);
-        let msg = document.getElementById('wave-msg');
-        msg.textContent = `第 ${G.wave} 波`;
-        msg.style.opacity = 1;
-        setTimeout(() => msg.style.opacity = 0, 1500);
-    }, 1000);
-}
-
-G.addParticles = function(x, y, c, n) {
-    for(let i=0; i<n; i++) {
-        G.particles.push({
-            x, y, vx: (Math.random()-.5)*10, vy: (Math.random()-.5)*10, 
-            life: 20, c: c, s: 2+Math.random()*3
-        });
-    }
-}
-G.addNum = function(x, y, d, crit, c) {
-    G.nums.push({x, y, d, life: 30, crit, c: c||'#fff'});
-}
-
-// 技能池
-const SKILLS = [
-    {name:'多发弹', icon:'🔥', desc:'攻击+1', fn:p=>p.count++},
-    {name:'弹射+', icon:'💫', desc:'弹射次数+1', fn:p=>p.bounce++},
-    {name:'穿透+', icon:'🎯', desc:'穿透+1', fn:p=>p.pierce++},
-    {name:'伤害+', icon:'⚔️', desc:'伤害+20', fn:p=>p.dmg+=20},
-    {name:'射速+', icon:'⚡', desc:'间隔-10%', fn:p=>p.rate=Math.max(5, p.rate*0.9)},
-    {name:'暴击+', icon:'🎲', desc:'暴击+5%', fn:p=>p.crit=Math.min(.8, p.crit+.05)},
-    {name:'减速弹', icon:'❄️', desc:'击中减速', fn:p=>p.buffs.slow=true},
-    {name:'灼烧弹', icon:'🔥', desc:'附加 DOT', fn:p=>p.buffs.burn=true},
-];
-
-function showSkills() {
-    G.state = 'skill';
-    let menu = document.getElementById('skill-menu');
-    let box = document.getElementById('skills');
-    box.innerHTML = '';
-    // 随机 3 个
-    let pool = [...SKILLS].sort(()=>Math.random()-.5).slice(0,3);
-    for(let s of pool) {
-        let d = document.createElement('div');
-        d.className = 'skill-card';
-        d.innerHTML = `<div class="s-icon">${s.icon}</div><div><div class="s-name">${s.name}</div><div class="s-desc">${s.desc}</div></div>`;
-        d.onclick = () => {
-            s.fn(G.p);
-            menu.style.display = 'none';
-            G.state = 'play';
-        };
-        box.appendChild(d);
-    }
-    menu.style.display = 'block';
-}
-
-// 游戏循环
-function loop() {
-    if (G.state == 'play') {
-        G.time++; G.frame++;
-        G.p.update();
-        G.dragon.update();
-
-        // 更新子弹
-        G.bullets = G.bullets.filter(b => b.update());
-
-        // 粒子更新
-        G.particles = G.particles.filter(p => {
-            p.x += p.vx; p.y += p.vy; p.life--;
-            return p.life > 0;
-        });
-
-        // 升级
-        G.p.xp += 1;
-        if (G.p.xp >= G.p.xpNext) {
-            G.p.xp -= G.p.xpNext;
-            G.p.lv++;
-            G.p.xpNext = Math.floor(G.p.xpNext * 1.4);
-            showSkills();
-        }
-
-        if(G.shake>0) G.shake*=.9;
     }
 
-    // 渲染
+    // Render
     X.fillStyle = '#050510'; X.fillRect(0,0,W,H);
     X.save();
-    if(G.shake>0.5) X.translate((Math.random()-.5)*G.shake, (Math.random()-.5)*G.shake);
+    if(Game.shake>0) { X.translate((Math.random()-.5)*Game.shake, (Math.random()-.5)*Game.shake); Game.shake*=.9; }
     
-    // 网格背景
+    // Grid
     X.strokeStyle = 'rgba(255,255,255,0.05)';
     for(let i=0; i<W; i+=50){ X.beginPath(); X.moveTo(i,0); X.lineTo(i,H); X.stroke(); }
     
-    if(G.dragon) G.dragon.draw();
-    if(G.p) G.p.draw();
-    G.bullets.forEach(b => b.draw());
-    G.particles.forEach(p => {
-        X.fillStyle = p.c; X.beginPath(); X.arc(p.x,p.y,p.s,0,Math.PI*2); X.fill();
-    });
-    G.nums = G.nums.filter(n => {
-        n.y -= 2; n.life--;
-        X.fillStyle = n.c; X.font = `bold ${n.crit?22:14}px sans-serif`; X.textAlign='center';
-        X.fillText(n.d, n.x, n.y);
-        return n.life > 0;
-    });
+    // Dragon
+    if (Game.dragon) {
+        for (let i=Game.dragon.segs.length-1; i>=0; i--) {
+            let s = Game.dragon.segs[i];
+            if (s.hp <= 0) continue;
+            X.beginPath(); X.arc(s.x, s.y, s.r, 0, Math.PI*2);
+            X.fillStyle = s.hit > 0 ? '#fff' : '#0f0';
+            X.fill();
+        }
+        // Head
+        X.fillStyle = '#f00'; X.beginPath(); X.arc(Game.dragon.headX, Game.dragon.headY, Game.dragon.r, 0, Math.PI*2); X.fill();
+    }
+
+    // Player
+    X.fillStyle = '#0ff'; X.beginPath(); X.arc(Game.p.x, Game.p.y, Game.p.r, 0, Math.PI*2); X.fill();
+    
+    // Bullets
+    for (let b of Game.bullets) {
+        X.fillStyle = '#ff0'; X.beginPath(); X.arc(b.x, b.y, 4, 0, Math.PI*2); X.fill();
+    }
 
     X.restore();
     updateUI();
     requestAnimationFrame(loop);
 }
 
-document.getElementById('restart-btn').onclick = () => {
-    G = { state:'play', time:0, frame:0, score:0, shake:0, wave:1, bullets:[], particles:[], nums:[], dragon:new Dragon(1), p:new Player() };
-    document.getElementById('game-over').style.display = 'none';
-    console.log("Loop starting"); loop();
-};
-
-// 启动
-console.log("Loop starting"); loop();
+// Start
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
