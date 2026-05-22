@@ -105,7 +105,7 @@ function loop() {
     }
     
     // UI
-    document.getElementById('score').textContent = 'Score: ' + Math.floor(1000 - boss.hp);
+    document.getElementById('score').textContent = 'Score: ' + Math.floor(1000 - boss.hp) + ' | W:' + w + ' H:' + h;
     document.getElementById('hp-fill').style.width = (p.hp / p.maxHp * 100) + '%';
     
     requestAnimationFrame(loop);
