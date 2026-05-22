@@ -105,8 +105,11 @@ function loop() {
     }
     
     // UI
-    document.getElementById('score').textContent = 'Score: ' + Math.floor(1000 - boss.hp) + ' | W:' + w + ' H:' + h;
+    document.getElementById('score').textContent = 'Score: ' + Math.floor(1000 - boss.hp);
     document.getElementById('hp-fill').style.width = (p.hp / p.maxHp * 100) + '%';
+    
+    // Auto resize to ensure touch works
+    if (c.width !== window.innerWidth) resize();
     
     requestAnimationFrame(loop);
 }
