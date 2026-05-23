@@ -422,6 +422,7 @@ function restartGame() {
     document.getElementById('boss-hp-fill').style.width = '100%';
     gameState = 'playing';
     boss = null;
+    generateLevel(1);
 }
 
 function gameOver() {
