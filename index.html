@@ -38,6 +38,13 @@ canvas { display: block; background: #050510; }
         <div id="boss-name">🐉 鬼新娘邪龙</div>
         <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
     </div>
+    
+    <div id="player-hp-container" style="position:absolute;bottom:10px;left:5%;width:90%;height:20px;">
+        <div style="text-align:center;color:#00ffff;font-size:14px;margin-bottom:2px;text-shadow:0 0 5px cyan;">🛡️ 玩家 HP</div>
+        <div style="width:100%;height:12px;background:#333;border:2px solid #555;border-radius:6px;overflow:hidden;">
+            <div id="player-hp-fill" style="height:100%;background:linear-gradient(90deg,#00ff88,#00ffff);width:100%;transition:width 0.1s;"></div>
+        </div>
+    </div>
 
     <div id="skill-menu">
         <h2 style="color: #00ff88; text-shadow: 0 0 10px #00ff88; margin-bottom: 20px;">⬆️ 升级! 选择强化</h2>
@@ -127,17 +134,27 @@ function generateLevel(levelNum) {
   const monsterHP = 40 + levelNum * 3;
   const nodeHP = 80 + levelNum * 6;
   const nodeInterval = Math.max(2, 6 - Math.floor(levelNum / 30));
+  
+  // BOSS血量随关卡递增（基础5000 + 每关+500）
+  const bossHP = 5000 + levelNum * 500;
+  // 玩家伤害随关卡递增（基础50 + 每关+10）
+  const playerDmg = 50 + levelNum * 10;
 
   // 更新BOSS名称显示
-  document.getElementById('boss-name').innerText = `🐉 鬼新娘邪龙 [${levelTheme.name}] - ${bossMode.name}`;
+  document.getElementById('boss-name').innerText = `🐉 鬼新娘邪龙 [${levelTheme.name}] Lv.${levelNum}`;
 
-  return { monsterCount, monsterSpeed, monsterHP, nodeHP, nodeInterval };
+  return { monsterCount, monsterSpeed, monsterHP, nodeHP, nodeInterval, bossHP, playerDmg };
 }
 
 // 进入下一关
 function nextLevel() {
   score += 1000 + currentLevel * 100;
-  generateLevel(currentLevel + 1);
+  // 过关回血
+  player.hp = Math.min(player.maxHp, player.hp + 300);
+  // 提升玩家伤害
+  const config = generateLevel(currentLevel + 1);
+  player.damage = config.playerDmg;
+  
   setTimeout(() => {
     boss = createBossForMode(bossMode);
     document.getElementById('boss-hp-fill').style.width = '100%';
@@ -294,7 +311,8 @@ class SnakeBoss {
     constructor(theme, config) {
         this.segments = [];
         this.segmentCount = 120;
-        this.hp = 5000; this.maxHp = 5000;
+        this.maxHp = config ? config.bossHP || 5000 : 5000;
+        this.hp = this.maxHp;
         this.headX = W/2; this.headY = -100;
         this.speed = config ? config.monsterSpeed || 1.5 : 1.5;
         this.radius = 25;
@@ -308,7 +326,13 @@ class SnakeBoss {
     }
 
     update() {
-        this.headY += this.speed;
+        // BOSS在屏幕上半部分来回移动，不直接冲向玩家
+        this.headY += this.speed * 0.5;
+        let maxY = H * 0.45; // 最多到屏幕45%位置
+        let minY = 80;
+        if(this.headY > maxY) { this.speed = -Math.abs(this.speed); this.headY = maxY; }
+        if(this.headY < minY) { this.speed = Math.abs(this.speed); this.headY = minY; }
+        
         // 宽 S 型走位
         this.headX = W/2 + Math.sin(this.headY * this.frequency + time * 0.02) * this.amplitude;
         
@@ -323,8 +347,8 @@ class SnakeBoss {
             if(this.segments.length > this.segmentCount) this.segments.pop();
         }
         
-        // 碰撞
-        if(this.headY > player.y - 50) {
+        // 碰撞检测（只有头靠近玩家时才判定）
+        if(this.headY > player.y - 100) {
              let d = Math.hypot(this.headX - player.x, this.headY - player.y);
              if (d < this.radius + player.radius) {
                  player.hp -= 100;
@@ -452,6 +476,12 @@ function update() {
     let secs = Math.floor(time/60);
     document.getElementById('time').innerText = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`;
     document.getElementById('score').innerText = score;
+    
+    // 更新玩家HP条
+    document.getElementById('player-hp-fill').style.width = (Math.max(0, player.hp / player.maxHp) * 100) + '%';
+    if(player.hp / player.maxHp < 0.3) {
+        document.getElementById('player-hp-fill').style.background = 'linear-gradient(90deg,#ff0000,#ff6600)';
+    }
 
     if(!boss) {
       generateLevel(1);
