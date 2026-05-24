@@ -575,13 +575,18 @@ function drawChest(){
 
 function bossUpdate(){
     if(!boss) return;
-    boss.headY += boss.speed * 0.5;
-    let maxY=H*0.45, minY=80;
-    if(boss.headY>maxY){ boss.speed=Math.abs(boss.speed); boss.headY=maxY; }
-    if(boss.headY<minY){ boss.speed=-Math.abs(boss.speed); boss.headY=minY; }
+    // 原版逻辑：蛇持续向下走
+    boss.headY += boss.speed;
+    // S型横向走位
     boss.headX = W/2 + Math.sin(boss.headY*boss.frequency + levelTime*0.02) * boss.amplitude;
     if(boss.headX<boss.radius) boss.headX=boss.radius;
     if(boss.headX>W-boss.radius) boss.headX=W-boss.radius;
+    // 蛇头超出屏幕底部，重置到顶部（压迫循环）
+    if(boss.headY > H + 50){
+        boss.headY = -100;
+        boss.segments = [];
+        for(let i=0;i<boss.segmentCount;i++) boss.segments.push({x:W/2, y:-100-i*10, alive:true});
+    }
 
     let last=boss.segments[0];
     let dist=Math.hypot(boss.headX-last.x, boss.headY-last.y);
