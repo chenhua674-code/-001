@@ -137,11 +137,14 @@ function generateLevel(levelNum) {
   
   // BOSS血量随关卡递增（基础5000 + 每关+500）
   const bossHP = 5000 + levelNum * 500;
-  // 玩家伤害随关卡递增（基础50 + 每关+10）
-  const playerDmg = 50 + levelNum * 10;
+  // 玩家伤害随关卡递增（第1关50，之后每关+10）
+  const playerDmg = 50 + (levelNum - 1) * 10;
 
   // 更新BOSS名称显示
   document.getElementById('boss-name').innerText = `🐉 鬼新娘邪龙 [${levelTheme.name}] Lv.${levelNum}`;
+  
+  // 同步玩家伤害
+  player.damage = playerDmg;
 
   return { monsterCount, monsterSpeed, monsterHP, nodeHP, nodeInterval, bossHP, playerDmg };
 }
