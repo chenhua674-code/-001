@@ -101,7 +101,7 @@ canvas { display:block; background:#050510; }
 .skill-card .s-info p { margin:3px 0 0; color:#bbb; font-size:12px; }
 .rarity { font-size:9px; padding:1px 5px; border-radius:3px; margin-top:3px; display:inline-block; }
 .r-common { background:#555; } .r-rare { background:#06c; } .r-epic { background:#a0c; } .r-legendary { background:#c60; }
-
+.skill-level { font-size:10px; color:#ffcc00; margin-left:6px; }
 
 /* === 结算面板 === */
 #settle-screen { background:rgba(0,0,0,0.95); justify-content:center; align-items:center; gap:12px; z-index:400; }
@@ -190,7 +190,7 @@ canvas { display:block; background:#050510; }
 
 <!-- 技能选择 -->
 <div id="skill-menu" class="screen">
-    <h2>⬆️ 击破宝箱! 选择词条</h2>
+    <h2>⬆️ 选择强化</h2>
     <p class="sub" id="skill-sub-info">等级 2</p>
     <div id="skills-container" style="width:100%;display:flex;flex-direction:column;align-items:center;"></div>
 </div>
@@ -228,7 +228,7 @@ window.addEventListener('resize', resize); resize();
 let save = {
     gold: 0, diamonds: 0,
     upgrades: { hp:1, atk:1, spd:1 },
-    weapons: ['basic'], // 已解锁武器
+    weapons: ['basic'],
     equipped: 'basic',
     lastOnline: Date.now(),
     totalKills: 0,
@@ -243,8 +243,8 @@ loadSave();
 
 // 离线收益
 function checkOffline(){
-    const elapsed = (Date.now() - save.lastOnline) / 1000; // 秒
-    if(elapsed > 60){ // 超过1分钟
+    const elapsed = (Date.now() - save.lastOnline) / 1000;
+    if(elapsed > 60){
         const goldEarned = Math.floor(elapsed * 0.5 * (1 + save.upgrades.atk * 0.1));
         const diamondsEarned = Math.floor(elapsed * 0.01);
         save.gold += goldEarned;
@@ -261,7 +261,6 @@ function showScreen(id){
     const el=document.getElementById(id); if(el) el.classList.add('active');
     if(id==='menu-screen') initMenu();
     if(id==='equip-screen') renderEquip();
-    if(id==='shop-screen') {}
 }
 
 function initMenu(){
@@ -277,7 +276,7 @@ function buyItem(type, cost){
     save.gold -= cost;
     if(type==='sweep') { save.gold += 200; alert('扫荡完成! 获得 💰200'); }
     else if(type==='weaponbox'){
-        const allW = ['basic','pill','syringe','dagger','satellite','tide_stone','med_swab'];
+        const allW = ['basic','pill','syringe','dagger','satellite','tide_stone','med_swab','lab_mouth'];
         const available = allW.filter(w=>!save.weapons.includes(w));
         if(available.length){ const w=available[Math.floor(Math.random()*available.length)]; save.weapons.push(w); alert(`获得新武器: ${WEAPONS[w].name}`); }
         else alert('所有武器已解锁!');
@@ -342,7 +341,6 @@ function renderEquip(){
     });
 }
 
-// ========== 武器属性计算 ==========
 function getPlayerStats(){
     const w = WEAPONS[save.equipped] || WEAPONS.basic;
     return {
@@ -354,57 +352,179 @@ function getPlayerStats(){
 }
 
 // ========== 战斗系统 ==========
-let gameState = 'menu'; // menu, playing, paused, skillSelect, gameover
+let gameState = 'menu';
 let player, boss, bullets, angels, particles, damageNums;
-let currentLevel = 1, levelTime = 0, levelDuration = 3600; // 60秒通关(60fps)
+let currentLevel = 1, levelTime = 0, levelDuration = 3600;
 let battleGold = 0;
-let chestNodes = []; // 宝箱节点
-let chestCounter = 0;
-let skills = []; // 已选技能
+let skills = {}; // { skillId: level }  技能升级系统，最高3级
 let lastSettleReward = 0;
 
-// ========== 30种技能词条 ==========
+// ========== 30种技能词条（含多级效果） ==========
 const ALL_SKILLS = [
-    { id:'dmg15', name:'🔥 伤害+15%', desc:'基础伤害+15%', icon:'🔥', rarity:'common', cat:'攻击', apply:()=>{player.damage=Math.floor(player.damage*1.15);}, stackable:true },
-    { id:'dmg30', name:'💥 伤害+30%', desc:'基础伤害+30%', icon:'💥', rarity:'rare', cat:'攻击', apply:()=>{player.damage=Math.floor(player.damage*1.30);}, stackable:true },
-    { id:'dmg50', name:'☄️ 伤害+50%', desc:'基础伤害+50%', icon:'☄️', rarity:'epic', cat:'攻击', apply:()=>{player.damage=Math.floor(player.damage*1.50);}, stackable:true },
-    { id:'rate10', name:'⚡ 射速+10%', desc:'射击间隔-10%', icon:'⚡', rarity:'common', cat:'攻击', apply:()=>{player.fireRate=Math.max(3,Math.floor(player.fireRate*0.90));}, stackable:true },
-    { id:'rate20', name:'⚡⚡ 射速+20%', desc:'射击间隔-20%', icon:'⚡', rarity:'rare', cat:'攻击', apply:()=>{player.fireRate=Math.max(2,Math.floor(player.fireRate*0.80));}, stackable:true },
-    { id:'bullet1', name:'🔱 弹数+1', desc:'每次多射1弹', icon:'🔱', rarity:'common', cat:'攻击', apply:()=>{player.bulletCount++;}, stackable:true },
-    { id:'bullet2', name:'🔱🔱 弹数+2', desc:'每次多射2弹', icon:'🔱', rarity:'rare', cat:'攻击', apply:()=>{player.bulletCount+=2;}, stackable:true },
-    { id:'pierce1', name:'💎 穿透+1', desc:'穿透+1', icon:'💎', rarity:'common', cat:'攻击', apply:()=>{player.pierce++;}, stackable:true },
-    { id:'pierce3', name:'💎💎 穿透+3', desc:'穿透+3', icon:'💎', rarity:'epic', cat:'攻击', apply:()=>{player.pierce+=3;}, stackable:true },
-    { id:'crit10', name:'⭐ 暴击+10%', desc:'10%概率2倍伤', icon:'⭐', rarity:'common', cat:'攻击', apply:()=>{player.critRate=(player.critRate||0)+0.1;}, stackable:true },
-    { id:'crit20', name:'⭐⭐ 暴击+20%', desc:'20%概率3倍伤', icon:'⭐', rarity:'epic', cat:'攻击', apply:()=>{player.critRate=(player.critRate||0)+0.2;player.critMult=3;}, stackable:true },
-    { id:'aoe', name:'🌀 范围伤害', desc:'命中溅射周围', icon:'🌀', rarity:'epic', cat:'攻击', apply:()=>{player.hasAOE=true;}, stackable:false },
-    { id:'explode', name:'💣 爆炸弹', desc:'命中产生爆炸', icon:'💣', rarity:'epic', cat:'攻击', apply:()=>{player.hasExplode=true;}, stackable:false },
-    { id:'split', name:'✂️ 分裂弹', desc:'飞行中分裂', icon:'✂️', rarity:'epic', cat:'攻击', apply:()=>{player.hasSplit=true;}, stackable:false },
-    { id:'homing', name:'🎯 追踪弹', desc:'自动追踪BOSS', icon:'🎯', rarity:'rare', cat:'攻击', apply:()=>{player.hasHoming=true;}, stackable:false },
-    { id:'bounce', name:'🏀 弹射弹', desc:'碰墙反弹', icon:'🏀', rarity:'common', cat:'攻击', apply:()=>{player.hasBounce=true;}, stackable:false },
-    { id:'lightning', name:'⚡ 闪电链', desc:'命中弹射2次', icon:'⚡', rarity:'epic', cat:'攻击', apply:()=>{player.hasLightning=true;}, stackable:false },
-    { id:'freeze', name:'❄️ 冰冻弹', desc:'命中减速BOSS', icon:'❄️', rarity:'rare', cat:'攻击', apply:()=>{player.hasFreeze=true;}, stackable:false },
-    { id:'poison', name:'🧪 毒雾', desc:'持续掉毒伤3秒', icon:'🧪', rarity:'rare', cat:'攻击', apply:()=>{player.hasPoison=true;}, stackable:false },
-    { id:'burn', name:'🔥 燃烧', desc:'持续灼烧2秒', icon:'🔥', rarity:'common', cat:'攻击', apply:()=>{player.hasBurn=true;}, stackable:false },
-    { id:'hp300', name:'❤️ HP+300', desc:'上限+300并回满', icon:'❤️', rarity:'common', cat:'防御', apply:()=>{player.maxHp+=300;player.hp=player.maxHp;}, stackable:true },
-    { id:'hp600', name:'❤️❤️ HP+600', desc:'上限+600并回满', icon:'❤️', rarity:'rare', cat:'防御', apply:()=>{player.maxHp+=600;player.hp=player.maxHp;}, stackable:true },
-    { id:'regen', name:'💚 生命恢复', desc:'每秒回1%HP', icon:'💚', rarity:'rare', cat:'防御', apply:()=>{player.hasRegen=true;}, stackable:false },
-    { id:'shield', name:'🛡️ 护盾', desc:'抵挡一次致死', icon:'🛡️', rarity:'epic', cat:'防御', apply:()=>{player.hasShield=true;}, stackable:false },
-    { id:'dodge', name:'💨 闪避+10%', desc:'10%免伤', icon:'💨', rarity:'rare', cat:'防御', apply:()=>{player.dodgeRate=(player.dodgeRate||0)+0.1;}, stackable:true },
-    { id:'angel1', name:'👼 天使+1', desc:'召唤天使助战', icon:'👼', rarity:'common', cat:'召唤', apply:()=>{if(!player.hasAngel){player.hasAngel=true;player.angelCount=1;}else{player.angelCount++;}}, stackable:true },
-    { id:'angel2', name:'👼👼 天使+2', desc:'再召唤2天使', icon:'👼', rarity:'rare', cat:'召唤', apply:()=>{if(!player.hasAngel){player.hasAngel=true;player.angelCount=2;}else{player.angelCount+=2;}}, stackable:true },
-    { id:'xp30', name:'📖 经验+30%', desc:'升级更快', icon:'📖', rarity:'common', cat:'辅助', apply:()=>{player.xpBonus=(player.xpBonus||1)+0.3;}, stackable:true },
-    { id:'gold20', name:'💰 金币+20%', desc:'过关多20%金币', icon:'💰', rarity:'common', cat:'辅助', apply:()=>{player.goldBonus=(player.goldBonus||1)+0.2;}, stackable:true },
-    { id:'slowboss', name:'🐌 减速Boss', desc:'Boss速度-15%', icon:'🐌', rarity:'rare', cat:'辅助', apply:()=>{player.slowBoss=(player.slowBoss||1)*0.85;}, stackable:true },
+    // === 弹幕流 ===
+    { id:'dmg15', name:'🔥 伤害+15%', desc:'基础伤害+15%', icon:'🔥', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.damage=Math.floor(player.damage*1.15);}, desc:'+15%'},
+        {apply:()=>{player.damage=Math.floor(player.damage*1.25);}, desc:'再+25% (总+44%)'},
+        {apply:()=>{player.damage=Math.floor(player.damage*1.40);}, desc:'再+40% (总+101%)'},
+      ]},
+    { id:'dmg30', name:'💥 伤害+30%', desc:'基础伤害+30%', icon:'💥', rarity:'rare', cat:'攻击',
+      levels:[
+        {apply:()=>{player.damage=Math.floor(player.damage*1.30);}, desc:'+30%'},
+        {apply:()=>{player.damage=Math.floor(player.damage*1.40);}, desc:'再+40%'},
+        {apply:()=>{player.damage=Math.floor(player.damage*1.50);}, desc:'再+50%'},
+      ]},
+    { id:'rate10', name:'⚡ 射速+10%', desc:'射击间隔-10%', icon:'⚡', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.fireRate=Math.max(3,Math.floor(player.fireRate*0.90));}, desc:'-10%'},
+        {apply:()=>{player.fireRate=Math.max(2,Math.floor(player.fireRate*0.85));}, desc:'再-15%'},
+        {apply:()=>{player.fireRate=Math.max(1,Math.floor(player.fireRate*0.80));}, desc:'再-20%'},
+      ]},
+    { id:'bullet1', name:'🔱 弹数+1', desc:'每次多射1弹', icon:'🔱', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.bulletCount++;}, desc:'+1'},
+        {apply:()=>{player.bulletCount++;}, desc:'再+1'},
+        {apply:()=>{player.bulletCount+=2;}, desc:'再+2'},
+      ]},
+    { id:'pierce1', name:'💎 穿透+1', desc:'穿透+1', icon:'💎', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.pierce++;}, desc:'+1'},
+        {apply:()=>{player.pierce++;}, desc:'再+1'},
+        {apply:()=>{player.pierce+=2;}, desc:'再+2'},
+      ]},
+    { id:'crit10', name:'⭐ 暴击+10%', desc:'10%概率2倍伤', icon:'⭐', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.critRate=(player.critRate||0)+0.1;}, desc:'+10%'},
+        {apply:()=>{player.critRate=(player.critRate||0)+0.15;}, desc:'再+15%'},
+        {apply:()=>{player.critRate=(player.critRate||0)+0.25; player.critMult=3;}, desc:'再+25% 暴伤x3'},
+      ]},
+    // === 质变技能 ===
+    { id:'aoe', name:'🌀 范围伤害', desc:'命中溅射周围敌人', icon:'🌀', rarity:'epic', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasAOE=true; player.aoeRadius=40;}, desc:'溅射半径40'},
+        {apply:()=>{player.aoeRadius=70;}, desc:'半径扩大到70'},
+        {apply:()=>{player.aoeRadius=100; player.aoeDmg=0.5;}, desc:'半径100 + 50%溅射伤'},
+      ]},
+    { id:'explode', name:'💣 爆炸弹', desc:'命中产生爆炸', icon:'💣', rarity:'epic', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasExplode=true;}, desc:'爆炸伤害'},
+        {apply:()=>{player.explodeRadius=50;}, desc:'爆炸范围扩大'},
+        {apply:()=>{player.explodeRadius=80; player.explodeDmg=0.5;}, desc:'范围+伤害'},
+      ]},
+    { id:'split', name:'✂️ 分裂弹', desc:'飞行中分裂', icon:'✂️', rarity:'epic', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasSplit=true;}, desc:'分裂1次'},
+        {apply:()=>{player.splitCount=2;}, desc:'分裂2次'},
+        {apply:()=>{player.splitCount=3;}, desc:'分裂3次'},
+      ]},
+    { id:'homing', name:'🎯 追踪弹', desc:'自动追踪BOSS', icon:'🎯', rarity:'rare', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasHoming=true;}, desc:'追踪'},
+        {apply:()=>{player.homingSpeed=1.3;}, desc:'追踪加速30%'},
+        {apply:()=>{player.homingSpeed=1.6; player.homingDmg=1.2;}, desc:'追踪+20%伤害'},
+      ]},
+    { id:'bounce', name:'🏀 弹射弹', desc:'碰墙反弹', icon:'🏀', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasBounce=true; player.bounceCount=2;}, desc:'弹2次'},
+        {apply:()=>{player.bounceCount=4;}, desc:'弹4次'},
+        {apply:()=>{player.bounceCount=6;}, desc:'弹6次'},
+      ]},
+    { id:'lightning', name:'⚡ 闪电链', desc:'命中弹射到附近敌人', icon:'⚡', rarity:'epic', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasLightning=true; player.lightningCount=2;}, desc:'弹2次'},
+        {apply:()=>{player.lightningCount=4;}, desc:'弹4次'},
+        {apply:()=>{player.lightningCount=6; player.lightningDmg=0.8;}, desc:'弹6次+伤害'},
+      ]},
+    { id:'freeze', name:'❄️ 冰冻弹', desc:'命中减速BOSS', icon:'❄️', rarity:'rare', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasFreeze=true;}, desc:'减速'},
+        {apply:()=>{player.freezeSlow=0.8;}, desc:'减速到80%'},
+        {apply:()=>{player.freezeSlow=0.6; player.freezeChance=0.3;}, desc:'减速60% + 30%冰冻'},
+      ]},
+    { id:'poison', name:'🧪 毒雾', desc:'持续掉毒伤3秒', icon:'🧪', rarity:'rare', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasPoison=true; player.poisonDmg=2; player.poisonDur=3;}, desc:'3秒毒伤'},
+        {apply:()=>{player.poisonDmg=4; player.poisonDur=5;}, desc:'5秒+毒伤翻倍'},
+        {apply:()=>{player.poisonDmg=6; player.poisonDur=8; player.poisonSlow=0.9;}, desc:'8秒+减速'},
+      ]},
+    { id:'burn', name:'🔥 燃烧', desc:'持续灼烧2秒', icon:'🔥', rarity:'common', cat:'攻击',
+      levels:[
+        {apply:()=>{player.hasBurn=true; player.burnDmg=3; player.burnDur=2;}, desc:'2秒灼烧'},
+        {apply:()=>{player.burnDmg=5; player.burnDur=4;}, desc:'4秒+伤害提升'},
+        {apply:()=>{player.burnDmg=8; player.burnDur=6;}, desc:'6秒+高伤害'},
+      ]},
+    // === 防御 ===
+    { id:'hp300', name:'❤️ HP+300', desc:'上限+300并回满', icon:'❤️', rarity:'common', cat:'防御',
+      levels:[
+        {apply:()=>{player.maxHp+=300; player.hp=player.maxHp;}, desc:'+300HP'},
+        {apply:()=>{player.maxHp+=400; player.hp=player.maxHp;}, desc:'再+400HP'},
+        {apply:()=>{player.maxHp+=600; player.hp=player.maxHp;}, desc:'再+600HP'},
+      ]},
+    { id:'regen', name:'💚 生命恢复', desc:'每秒回1%HP', icon:'💚', rarity:'rare', cat:'防御',
+      levels:[
+        {apply:()=>{player.hasRegen=true; player.regenRate=0.01;}, desc:'1%/秒'},
+        {apply:()=>{player.regenRate=0.02;}, desc:'2%/秒'},
+        {apply:()=>{player.regenRate=0.03; player.regenBurst=0.05;}, desc:'3%/秒 + 低血量爆发'},
+      ]},
+    { id:'shield', name:'🛡️ 护盾', desc:'抵挡一次致死伤害', icon:'🛡️', rarity:'epic', cat:'防御',
+      levels:[
+        {apply:()=>{player.hasShield=true;}, desc:'1次免死'},
+        {apply:()=>{player.shieldCount=2;}, desc:'2次免死'},
+        {apply:()=>{player.shieldCount=3; player.shieldHeal=0.3;}, desc:'3次 + 免死后回30%'},
+      ]},
+    { id:'dodge', name:'💨 闪避+10%', desc:'10%概率免伤', icon:'💨', rarity:'rare', cat:'防御',
+      levels:[
+        {apply:()=>{player.dodgeRate=(player.dodgeRate||0)+0.1;}, desc:'+10%'},
+        {apply:()=>{player.dodgeRate=(player.dodgeRate||0)+0.15;}, desc:'再+15%'},
+        {apply:()=>{player.dodgeRate=(player.dodgeRate||0)+0.25;}, desc:'再+25%'},
+      ]},
+    // === 召唤 ===
+    { id:'angel1', name:'👼 天使+1', desc:'召唤天使助战', icon:'👼', rarity:'common', cat:'召唤',
+      levels:[
+        {apply:()=>{if(!player.hasAngel){player.hasAngel=true;player.angelCount=1;}else{player.angelCount++;}}, desc:'+1天使'},
+        {apply:()=>{player.angelCount+=2;}, desc:'再+2天使'},
+        {apply:()=>{player.angelCount+=3; player.angelDmg=1.5;}, desc:'再+3天使 + 伤害'},
+      ]},
+    // === 辅助 ===
+    { id:'xp30', name:'📖 经验+30%', desc:'升级更快', icon:'📖', rarity:'common', cat:'辅助',
+      levels:[
+        {apply:()=>{player.xpBonus=(player.xpBonus||1)+0.3;}, desc:'+30%'},
+        {apply:()=>{player.xpBonus=(player.xpBonus||1)+0.4;}, desc:'再+40%'},
+        {apply:()=>{player.xpBonus=(player.xpBonus||1)+0.5;}, desc:'再+50%'},
+      ]},
+    { id:'gold20', name:'💰 金币+20%', desc:'过关多20%金币', icon:'💰', rarity:'common', cat:'辅助',
+      levels:[
+        {apply:()=>{player.goldBonus=(player.goldBonus||1)+0.2;}, desc:'+20%'},
+        {apply:()=>{player.goldBonus=(player.goldBonus||1)+0.3;}, desc:'再+30%'},
+        {apply:()=>{player.goldBonus=(player.goldBonus||1)+0.5;}, desc:'再+50%'},
+      ]},
+    { id:'slowboss', name:'🐌 减速Boss', desc:'Boss速度降低', icon:'🐌', rarity:'rare', cat:'辅助',
+      levels:[
+        {apply:()=>{player.slowBoss=(player.slowBoss||1)*0.85;}, desc:'速度×0.85'},
+        {apply:()=>{player.slowBoss=(player.slowBoss||1)*0.80;}, desc:'再×0.80'},
+        {apply:()=>{player.slowBoss=(player.slowBoss||1)*0.70;}, desc:'再×0.70'},
+      ]},
 ];
 
+// 获取技能当前等级
+function getSkillLevel(id){ return skills[id] || 0; }
+// 获取技能最高等级
+function isSkillMaxed(id){ return (skills[id]||0) >= 3; }
+
 function getRandomSkills(count){
-    let pool = ALL_SKILLS.filter(s => !s.stackable || !skills.includes(s.id));
+    let pool = ALL_SKILLS.filter(s => !isSkillMaxed(s.id));
+    // 优先显示已有的技能（可以升级）
+    let existing = pool.filter(s => getSkillLevel(s.id) > 0);
+    let newOnes = pool.filter(s => getSkillLevel(s.id) === 0);
+    
     let result = [];
-    for(let i=0; i<count && pool.length>0; i++){
-        let weights = pool.map(s=>s.rarity==='legendary'?1:s.rarity==='epic'?3:s.rarity==='rare'?6:10);
-        let total = weights.reduce((a,b)=>a+b,0);
-        let r=Math.random()*total, idx=0;
-        while(r>weights[idx]) r-=weights[idx++];
+    // 至少给1个可升级的（如果有）
+    if(existing.length > 0 && result.length < count){
+        let idx = Math.floor(Math.random()*existing.length);
+        result.push(existing.splice(idx,1)[0]);
+    }
+    while(result.length < count && pool.length > 0){
+        let idx = Math.floor(Math.random()*pool.length);
         result.push(pool.splice(idx,1)[0]);
     }
     return result;
@@ -421,8 +541,17 @@ function showSkillSelect(reason){
         card.className = 'skill-card';
         const rClass = `r-${skill.rarity}`;
         const rLabel = {common:'普通',rare:'稀有',epic:'史诗',legendary:'传说'}[skill.rarity];
-        card.innerHTML = `<div class="s-icon">${skill.icon}</div><div class="s-info"><h3>${skill.name}</h3><p>${skill.desc}</p><span class="rarity ${rClass}">[${rLabel}] ${skill.cat}</span></div>`;
-        card.onclick = () => { skill.apply(); skills.push(skill.id); updateWeaponBar(); hideSkillSelect(); };
+        const curLv = getSkillLevel(skill.id);
+        const nextLv = curLv + 1;
+        const levelInfo = curLv > 0 ? ` [Lv.${curLv}→${nextLv}]` : ` [新→Lv.1]`;
+        const effectDesc = skill.levels[curLv].desc;
+        card.innerHTML = `<div class="s-icon">${skill.icon}</div><div class="s-info"><h3>${skill.name}${levelInfo}</h3><p>${skill.desc}</p><p style="color:#0f8;margin-top:2px;font-size:11px;">→ ${effectDesc}</p><span class="rarity ${rClass}">[${rLabel}] ${skill.cat}</span></div>`;
+        card.onclick = () => { 
+            skill.levels[curLv].apply(); 
+            skills[skill.id] = nextLv;
+            updateWeaponBar(); 
+            hideSkillSelect(); 
+        };
         container.appendChild(card);
     });
     showScreen('skill-menu');
@@ -476,8 +605,7 @@ function startGame(){
         weapon: stats.weapon
     };
     boss=null; bullets=[]; angels=[]; particles=[]; damageNums=[];
-    currentLevel=1; levelTime=0; battleGold=0; skills=[];
-    chestNodes=[]; chestCounter=0;
+    currentLevel=1; levelTime=0; battleGold=0; skills={};
     showScreen('battle-ui');
     initLevel();
     gameState='playing';
@@ -486,9 +614,8 @@ function startGame(){
 
 function initLevel(){
     levelTime=0;
-    levelDuration = 3600 + currentLevel * 200; // 每关加长
+    levelDuration = 3600 + currentLevel * 200;
     generateBoss();
-    chestNodes = []; activeChest = null;
     updateProgress();
 }
 
@@ -496,81 +623,60 @@ function generateBoss(){
     const isBossLevel = currentLevel % 5 === 0;
     const bossHP = isBossLevel ? 15000 + currentLevel*2000 : 5000 + currentLevel*500;
     const bossSpeed = (1.5 + currentLevel*0.02) * (player.slowBoss||1);
-    if(isBossLevel){
-        boss = {
-            isBoss:true, headX:W/2, headY:-100,
-            hp:bossHP, maxHp:bossHP, speed:bossSpeed,
-            radius:30, amplitude:180, frequency:0.03,
-            segments:[], segmentCount:120,
-            name:`🐉 邪龙Boss Lv.${currentLevel}`,
-            update:bossUpdate, draw:bossDraw, takeDamage:bossTakeDamage
-        };
-        for(let i=0;i<120;i++) boss.segments.push({x:W/2, y:-100-i*10, alive:true});
-        document.getElementById('boss-hp-container').style.display='block';
-    } else {
-        boss = {
-            isBoss:false, headX:W/2, headY:-100,
-            hp:bossHP, maxHp:bossHP, speed:bossSpeed,
-            radius:25, amplitude:180, frequency:0.03,
-            segments:[], segmentCount:120,
-            name:`🐍 病毒Lv.${currentLevel}`,
-            update:bossUpdate, draw:bossDraw, takeDamage:bossTakeDamage
-        };
-        for(let i=0;i<120;i++) boss.segments.push({x:W/2, y:-100-i*10, alive:true});
-        document.getElementById('boss-hp-container').style.display='block';
+    boss = {
+        isBoss: isBossLevel,
+        headX:W/2, headY:-100,
+        hp:bossHP, maxHp:bossHP, speed:bossSpeed,
+        radius: isBossLevel ? 30 : 25,
+        amplitude:180, frequency:0.03,
+        segments:[], segmentCount:120,
+        name: isBossLevel ? `🐉 邪龙Boss Lv.${currentLevel}` : `🐍 病毒Lv.${currentLevel}`,
+    // 宝箱节点：追踪"距离头部第几段"而不是数组index（因为index会变）
+    chestDistances: [], // 距离头部的段数偏移
+    update:bossUpdate, draw:bossDraw, takeDamage:bossTakeDamage
+};
+// 初始化蛇身体
+initSnakeBody();
+// 标记宝箱在蛇身体上的位置
+markChestSegments();
+
+function markChestSegments(){
+    // 根据 chestDistances 重新计算当前哪些数组index是宝箱段
+    boss.chestSegments = [];
+    for(let d of boss.chestDistances){
+        let idx = d % boss.segments.length;
+        if(idx < boss.segments.length && !boss.chestSegments.includes(idx)){
+            boss.chestSegments.push(idx);
+        }
     }
-    document.getElementById('boss-name').innerText = boss.name;
+}
+
+document.getElementById('boss-hp-container').style.display='block';
+document.getElementById('boss-name').innerText = boss.name;
+}
+
+// 初始化蛇身体并设置宝箱距离
+function initSnakeBody(){
+    boss.segments = [];
+    boss.chestDistances = [];
+    for(let i=0; i<boss.segmentCount; i++){
+        boss.segments.push({x:W/2, y:-100-i*10, alive:true});
+    }
+    // 每4-6段随机一个宝箱（距离头部的段数）
+    let pos = 4 + Math.floor(Math.random()*3);
+    while(pos < 80){
+        boss.chestDistances.push(pos);
+        pos += 4 + Math.floor(Math.random()*3);
+    }
 }
 
 function showLevelAnnounce(text){
-    // 简易屏幕公告
     const el = document.getElementById('progress-text');
     const orig = el.innerText;
     el.innerText = text;
     el.style.color = '#ffcc00';
     el.style.fontSize = '16px';
     setTimeout(()=>{ el.innerText=orig; el.style.color='#fff'; el.style.fontSize='11px'; }, 2000);
-}
-
-// 宝箱系统 - 稀有掉落，不是长在蛇身上
-let activeChest = null; // 当前活跃的宝箱 {x, y, hp, maxHp, radius, timer}
-
-function trySpawnChest(){
-    // Boss血量降到70%/40%/10%时各出现1个宝箱（所有关卡都适用）
-    if(!boss) return;
-    const thresholds = [0.7, 0.4, 0.1];
-    for(let t of thresholds){
-        if(boss.hp/boss.maxHp <= t && !activeChest && !chestNodes.includes(t)){
-            chestNodes.push(t); // 标记已触发
-            activeChest = {
-                x: 100 + Math.random()*(W-200),
-                y: 100 + Math.random()*(H*0.3),
-                hp: 3, maxHp: 3, // 需要3次射击才能打开
-                radius: 20,
-                timer: 600 // 10秒后消失
-            };
-            showLevelAnnounce('🎁 宝箱出现!');
-            break;
-        }
-    }
-}
-
-function drawChest(){
-    if(!activeChest) return;
-    const c = activeChest;
-    // 宝箱发光效果
-    ctx.save();
-    ctx.shadowBlur = 20; ctx.shadowColor = '#ffcc00';
-    ctx.beginPath(); ctx.arc(c.x, c.y, c.radius, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,200,0,0.3)'; ctx.fill();
-    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('🎁', c.x, c.y);
-    // HP指示
-    ctx.font = '10px Arial'; ctx.fillStyle = '#fff';
-    ctx.fillText(`${c.hp}/${c.maxHp}`, c.x, c.y + c.radius + 12);
-    ctx.restore();
 }
 
 function bossUpdate(){
@@ -581,7 +687,7 @@ function bossUpdate(){
     boss.headX = W/2 + Math.sin(boss.headY*boss.frequency + levelTime*0.02) * boss.amplitude;
     if(boss.headX<boss.radius) boss.headX=boss.radius;
     if(boss.headX>W-boss.radius) boss.headX=W-boss.radius;
-    // 蛇头超出屏幕底部，重置到顶部（压迫循环）
+    // 蛇头超出屏幕底部，重置到顶部
     if(boss.headY > H + 50){
         boss.headY = -100;
         boss.segments = [];
@@ -594,6 +700,8 @@ function bossUpdate(){
         boss.segments.unshift({x:boss.headX, y:boss.headY, alive:true});
         if(boss.segments.length>boss.segmentCount) boss.segments.pop();
     }
+    // 每帧重新标记宝箱段位置
+    markChestSegments();
     // 碰撞玩家
     if(boss.headY > player.y-100){
         let d=Math.hypot(boss.headX-player.x, boss.headY-player.y);
@@ -604,7 +712,10 @@ function bossUpdate(){
                 player.hp -= 100; screenShake=15;
                 showDamage(player.x,player.y,100,true);
                 if(player.hp<=0){
-                    if(player.hasShield){ player.hasShield=false; player.hp=100; showDamage(player.x,player.y,'护盾!',false); }
+                    if(player.hasShield){ 
+                        player.hasShield=false; player.hp=player.maxHp*0.3; 
+                        showDamage(player.x,player.y,'护盾!',false); 
+                    }
                     else gameOver();
                 }
             }
@@ -620,19 +731,24 @@ function bossDraw(){
         let s=boss.segments[i];
         if(!s.alive) continue;
         // 宝箱节点高亮
-        let isChest = chestNodes.includes(i);
+        let isChest = boss.chestSegments.includes(i);
         let r = boss.radius*(1-(i/boss.segmentCount)*0.6);
         if(r<5) r=5;
         let flicker = Math.sin(levelTime*0.2+i*0.1)*0.1;
         ctx.beginPath(); ctx.arc(s.x,s.y, isChest ? r+4 : r, 0, Math.PI*2);
         if(isChest){
-            ctx.fillStyle='#ffcc00'; ctx.shadowBlur=15; ctx.shadowColor='#ffcc00';
+            // 宝箱段发光+宝箱图标
+            let pulse = 0.5 + Math.sin(levelTime*0.3)*0.3;
+            ctx.fillStyle=`rgba(255,200,0,${pulse})`; ctx.shadowBlur=15; ctx.shadowColor='#ffcc00';
         } else {
             ctx.fillStyle=color; ctx.globalAlpha=0.6+flicker;
         }
         ctx.fill(); ctx.globalAlpha=1; ctx.shadowBlur=0;
         ctx.strokeStyle=isChest?'#fff':borderColor; ctx.lineWidth=2; ctx.stroke();
-        if(isChest){ ctx.font='14px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🎁',s.x,s.y); }
+        if(isChest){ 
+            ctx.font='16px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; 
+            ctx.fillText('🎁',s.x,s.y); 
+        }
     }
     // 头部
     ctx.save(); ctx.translate(boss.headX, boss.headY);
@@ -655,20 +771,17 @@ function bossDraw(){
 }
 
 function bossTakeDamage(dmg){
+    if(dmg<=0) return;
     let actualDmg = dmg;
-    // 武器特效：Boss双倍伤害
     if(player.weapon?.effect?.bossDmg && boss.isBoss) actualDmg *= player.weapon.effect.bossDmg;
-    // 暴击
     if(Math.random() < (player.critRate||0)) { actualDmg *= (player.critMult||2); showDamage(boss.headX,boss.headY-30,Math.floor(actualDmg),true); }
     else showDamage(boss.headX,boss.headY-30,Math.floor(actualDmg),false);
     boss.hp -= actualDmg;
     screenShake = Math.min(10,screenShake+1);
     for(let k=0;k<3;k++) particles.push({x:boss.headX,y:boss.headY,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,life:20,color:boss.isBoss?'#ff4444':'#00ff00',size:3+Math.random()*5});
     document.getElementById('boss-hp-fill').style.width = (Math.max(0,boss.hp/boss.maxHp)*100)+'%';
-    // 中毒
-    if(player.hasPoison && !boss.poisoned) { boss.poisoned=3; }
-    // 灼烧
-    if(player.hasBurn && !boss.burning) { boss.burning=2; }
+    if(player.hasPoison && !boss.poisoned) { boss.poisoned=player.poisonDur||3; boss.poisonDmg=player.poisonDmg||2; }
+    if(player.hasBurn && !boss.burning) { boss.burning=player.burnDur||2; boss.burnDmg=player.burnDmg||3; }
     if(boss.hp<=0) {
         battleGold += 50 + currentLevel*20;
         nextLevel();
@@ -678,7 +791,6 @@ function bossTakeDamage(dmg){
 function nextLevel(){
     currentLevel++;
     initLevel();
-    // 每关结束给3选1技能
     showSkillSelect(`第 ${currentLevel} 关 - 选择强化`);
 }
 
@@ -691,7 +803,6 @@ function updateProgress(){
     const pct = Math.min(100, Math.floor(levelTime / levelDuration * 100));
     document.getElementById('progress-fill').style.width = pct + '%';
     document.getElementById('progress-text').innerText = `关卡 ${currentLevel} - 进度 ${pct}%`;
-    // 进度条满 = 通关
     if(pct >= 100){
         battleGold += 100 + currentLevel*30;
         showSettlement(true);
@@ -737,7 +848,14 @@ function updateWeaponBar(){
     if(player.hasAngel) slots.push({icon:'👼', label:`x${player.angelCount}`});
     if(player.hasShield) slots.push({icon:'🛡️', label:'盾'});
     if(player.critRate>0) slots.push({icon:'⭐', label:`暴${Math.floor((player.critRate||0)*100)}%`});
-    for(let i=0; i<Math.min(6,slots.length); i++){
+    // 显示技能等级
+    for(let id in skills){
+        if(skills[id]>0){
+            const sk = ALL_SKILLS.find(s=>s.id===id);
+            if(sk) slots.push({icon:sk.icon, label:`Lv.${skills[id]}`});
+        }
+    }
+    for(let i=0; i<Math.min(8,slots.length); i++){
         const s = document.createElement('div');
         s.className = 'weapon-slot';
         s.innerHTML = `<span class="icon">${slots[i].icon}</span><span style="font-size:8px">${slots[i].label}</span>`;
@@ -766,12 +884,16 @@ function loop(){
     if(gameState==='playing'){
         levelTime++;
         // 生命恢复
-        if(player.hasRegen) player.hp = Math.min(player.maxHp, player.hp+Math.floor(player.maxHp*0.01));
+        if(player.hasRegen){
+            let rate = player.regenRate || 0.01;
+            if(player.hp < player.maxHp*0.3 && player.regenBurst) rate += player.regenBurst;
+            player.hp = Math.min(player.maxHp, player.hp+Math.floor(player.maxHp*rate));
+        }
         // Boss中毒/灼烧
         if(boss){
-            if(boss.poisoned>0){ boss.hp-=2; boss.poisoned--; }
-            if(boss.burning>0){ boss.hp-=3; boss.burning--; }
-            if(boss.hp<=0) bossTakeDamage(0);
+            if(boss.poisoned>0){ boss.hp-=boss.poisonDmg||2; boss.poisoned--; }
+            if(boss.burning>0){ boss.hp-=boss.burnDmg||3; boss.burning--; }
+            if(boss.hp<=0) bossTakeDamage(1);
         }
         update();
         draw();
@@ -793,25 +915,24 @@ function update(){
 
     if(boss) boss.update();
 
-        // 尝试生成宝箱
-        trySpawnChest();
-        // 更新宝箱倒计时
-        if(activeChest){ activeChest.timer--; if(activeChest.timer<=0){ activeChest=null; } }
-        
-        // 射击 - 垂直向上
+    // 射击 - 垂直向上
     if(player.fireTimer>0) player.fireTimer--;
     else {
         player.fireTimer = player.fireRate;
         let spread = player.bulletCount>1 ? 0.12 : 0;
         for(let i=0; i<player.bulletCount; i++){
             let angle = -Math.PI/2 + (i-(player.bulletCount-1)/2)*spread;
-            bullets.push({
+            let b = {
                 x:player.x, y:player.y, vx:Math.cos(angle)*14, vy:Math.sin(angle)*14,
                 dmg:player.damage, color:'#00ffff', pierce:player.pierce, life:10,
                 explode:player.hasExplode, freeze:player.hasFreeze, lightning:player.hasLightning,
                 poison:player.hasPoison, burn:player.hasBurn, split:player.hasSplit,
                 homing:player.hasHoming, bounce:player.hasBounce, aoe:player.hasAOE
-            });
+            };
+            if(player.weapon?.effect?.splitChance && Math.random()<player.weapon.effect.splitChance){
+                b.split = true; b.splitCount = player.splitCount || 1;
+            }
+            bullets.push(b);
         }
     }
 
@@ -821,7 +942,8 @@ function update(){
         a.timer++; a.x=W/2+Math.sin(a.timer*0.03)*150; a.y=H/3+Math.cos(a.timer*0.04)*100;
         if(a.timer%20===0 && boss){
             let tx=boss.headX||W/2, ty=boss.headY||H/3;
-            bullets.push({x:a.x,y:a.y,vx:(tx-a.x)*0.06,vy:(ty-a.y)*0.06,dmg:player.damage*0.3,color:'#ffff00',pierce:0,life:10});
+            let angelDmg = player.damage*0.3 * (player.angelDmg||1);
+            bullets.push({x:a.x,y:a.y,vx:(tx-a.x)*0.06,vy:(ty-a.y)*0.06,dmg:angelDmg,color:'#ffff00',pierce:0,life:10});
         }
     });
 
@@ -832,58 +954,77 @@ function update(){
             let tx=boss.headX, ty=boss.headY;
             let ta=Math.atan2(ty-b.y,tx-b.x), ca=Math.atan2(b.vy,b.vx);
             let diff=ta-ca; while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
-            ca+=diff*0.1; let spd=Math.hypot(b.vx,b.vy); b.vx=Math.cos(ca)*spd; b.vy=Math.sin(ca)*spd;
+            ca+=diff*0.1; let spd=Math.hypot(b.vx,b.vy); 
+            if(player.homingSpeed) spd *= player.homingSpeed;
+            b.vx=Math.cos(ca)*spd; b.vy=Math.sin(ca)*spd;
         }
         b.x+=b.vx; b.y+=b.vy;
         particles.push({x:b.x,y:b.y,vx:0,vy:0,life:5,color:b.color,size:2});
         if(b.bounce){
-            if(b.x<0||b.x>W){b.vx*=-1;b.x=Math.max(0,Math.min(W,b.x));}
-            if(b.y<0){b.vy*=-1;b.y=0;}
+            let maxBounce = player.bounceCount || 2;
+            b.bounces = b.bounces || 0;
+            if(b.x<0||b.x>W){b.vx*=-1;b.x=Math.max(0,Math.min(W,b.x));b.bounces++;}
+            if(b.y<0){b.vy*=-1;b.y=0;b.bounces++;}
+            if(b.bounces>=maxBounce){bullets.splice(i,1);continue;}
         } else if(b.x<0||b.x>W||b.y<0||b.y>H){bullets.splice(i,1);continue;}
 
-        // 碰撞 - 先检查宝箱
-        if(boss && activeChest){
-            let c = activeChest;
-            let dChest = Math.hypot(b.x-c.x, b.y-c.y);
-            if(dChest < c.radius){
-                c.hp--;
-                if(c.hp <= 0){
-                    // 宝箱打开! 3选1技能
-                    activeChest = null;
-                    showSkillSelect('🎁 宝箱击破! 选择词条');
-                    bullets.splice(i, 1);
-                    return;
-                }
-                // 打中宝箱特效
-                for(let k=0;k<5;k++) particles.push({x:c.x,y:c.y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,life:15,color:'#ffcc00',size:3});
+        if(!boss) { bullets.splice(i,1); continue; }
+
+        // 碰撞 - 先检查宝箱段（蛇身上）
+        let hitChest = false;
+        for(let ci=0; ci<boss.chestSegments.length; ci++){
+            let segIdx = boss.chestSegments[ci];
+            if(segIdx >= boss.segments.length) continue;
+            let seg = boss.segments[segIdx];
+            if(!seg || !seg.alive) continue;
+            let dChest = Math.hypot(b.x-seg.x, b.y-seg.y);
+            if(dChest < boss.radius + 5){
+                // 宝箱段被击中！直接从蛇身上移除
+                seg.alive = false;
+                boss.chestSegments.splice(ci, 1);
+                hitChest = true;
+                // 特效
+                for(let k=0;k<8;k++) particles.push({x:seg.x,y:seg.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:20,color:'#ffcc00',size:4});
+                // 暂停，弹出3选1
                 bullets.splice(i, 1);
-                continue;
+                showSkillSelect('🎁 宝箱击破! 选择词条');
+                return;
             }
         }
-        // 碰撞Boss
-        if(boss){
-            let hit=false;
-            let dHead = Math.hypot(b.x-boss.headX, b.y-boss.headY);
-            if(dHead < boss.radius*2){ boss.takeDamage(b.dmg); hit=true; }
-            // 检查身体段 - 击中后消失
-            if(!hit){
-                for(let s=0; s<boss.segments.length; s+=4){
-                    let seg=boss.segments[s];
-                    if(!seg.alive) continue;
-                    let dSeg = Math.hypot(b.x-seg.x, b.y-seg.y);
-                    if(dSeg < boss.radius){
-                        boss.takeDamage(b.dmg*0.5);
-                        seg.alive = false; // 身体段消失!
-                        hit = true; break;
-                    }
+
+        // 碰撞Boss头部
+        let hitHead = Math.hypot(b.x-boss.headX, b.y-boss.headY) < boss.radius*2;
+        if(hitHead){
+            let dmg = b.dmg;
+            if(player.homingDmg) dmg *= player.homingDmg;
+            boss.takeDamage(dmg);
+            // 特效
+            if(b.explode){ 
+                let r = player.explodeRadius || 40;
+                for(let k=0;k<12;k++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,life:15,color:'#ff6600',size:5}); 
+                boss.takeDamage(b.dmg*(player.explodeDmg||0.3)); 
+            }
+            if(b.freeze && boss.speed) boss.speed *= (player.freezeSlow || 0.95);
+            hitChest = false; // 已命中头部
+        }
+
+        // 碰撞身体段
+        if(!hitHead){
+            for(let s=0; s<boss.segments.length; s+=4){
+                let seg=boss.segments[s];
+                if(!seg || !seg.alive) continue;
+                let dSeg = Math.hypot(b.x-seg.x, b.y-seg.y);
+                if(dSeg < boss.radius){
+                    boss.takeDamage(b.dmg*0.5);
+                    seg.alive = false;
+                    hitHead = true; break;
                 }
             }
-            if(hit){
-                if(b.explode){ for(let k=0;k<8;k++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:15,color:'#ff6600',size:4}); boss.takeDamage(b.dmg*0.3); }
-                if(b.freeze && boss.speed) boss.speed *= 0.97;
-                b.pierce--;
-                if(b.pierce<0){bullets.splice(i,1);continue;}
-            }
+        }
+
+        if(hitHead){
+            b.pierce--;
+            if(b.pierce<0){bullets.splice(i,1);continue;}
         }
     }
     // 粒子
@@ -900,7 +1041,6 @@ function draw(){
     ctx.strokeStyle='rgba(255,0,50,0.05)'; ctx.lineWidth=2;
     for(let i=0;i<W;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
     if(boss) boss.draw();
-    drawChest();
     angels.forEach(a=>{ctx.font='40px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('👼',a.x,a.y);ctx.beginPath();ctx.arc(a.x,a.y,30,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fill();});
     drawPlayer();
     bullets.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,4,0,Math.PI*2);ctx.fillStyle=b.color;ctx.shadowBlur=10;ctx.shadowColor=b.color;ctx.fill();ctx.shadowBlur=0;});
