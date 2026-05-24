@@ -526,8 +526,8 @@ function generateBoss(){
 let activeChest = null; // 当前活跃的宝箱 {x, y, hp, maxHp, radius, timer}
 
 function trySpawnChest(){
-    // Boss血量降到70%/40%/10%时各出现1个宝箱
-    if(!boss || boss.isBoss === false) return;
+    // Boss血量降到70%/40%/10%时各出现1个宝箱（所有关卡都适用）
+    if(!boss) return;
     const thresholds = [0.7, 0.4, 0.1];
     for(let t of thresholds){
         if(boss.hp/boss.maxHp <= t && !activeChest && !chestNodes.includes(t)){
