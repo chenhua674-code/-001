@@ -5,468 +5,666 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
 <title>看谁能打过 - 弹射打龙</title>
 <style>
-body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
-canvas { display: block; background: #050510; }
-#ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-#hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; color: white; font-size: 18px; font-weight: bold; text-shadow: 0 2px 4px black; }
-#boss-hp-container { position: absolute; top: 45px; left: 5%; width: 90%; height: 20px; }
-#boss-name { text-align: center; color: #ff3333; font-size: 16px; margin-bottom: 2px; text-shadow: 0 0 5px red; }
-#boss-hp-bg { width: 100%; height: 12px; background: #333; border: 2px solid #555; border-radius: 6px; overflow: hidden; }
-#boss-hp-fill { height: 100%; background: linear-gradient(90deg, #ff0000, #ff6600); width: 100%; transition: width 0.1s; }
+* { box-sizing: border-box; }
+body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; touch-action:none; color:#fff; }
+canvas { display:block; background:#050510; }
+.screen { position:absolute; top:0; left:0; width:100%; height:100%; display:none; flex-direction:column; pointer-events:auto; }
+.screen.active { display:flex; }
 
-/* 武器槽 */
-#weapon-bar {
-    position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 6px; pointer-events: auto;
-}
-.weapon-slot {
-    width: 52px; height: 52px; background: rgba(20,20,40,0.9); border: 2px solid #555;
-    border-radius: 10px; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; color: #aaa; font-size: 11px; position: relative;
-}
-.weapon-slot .icon { font-size: 22px; }
-.weapon-slot .level { position: absolute; top: -4px; right: -4px; background: #ff6600; color: white;
-    font-size: 10px; font-weight: bold; border-radius: 50%; width: 18px; height: 18px;
-    display: flex; align-items: center; justify-content: center; }
-.weapon-slot .count { position: absolute; bottom: -4px; right: -4px; background: #00aaff; color: white;
-    font-size: 10px; font-weight: bold; border-radius: 50%; width: 18px; height: 18px;
-    display: flex; align-items: center; justify-content: center; }
+/* === 主菜单 === */
+#menu-screen { background: linear-gradient(180deg, #0a0a2e, #1a0a0a); justify-content:center; align-items:center; gap:12px; }
+#menu-screen h1 { font-size:36px; color:#ff3333; text-shadow:0 0 20px red; margin-bottom:5px; }
+#menu-screen .subtitle { color:#aaa; font-size:14px; margin-bottom:20px; }
+.menu-btn { width:80%; max-width:300px; padding:14px; border:2px solid; border-radius:12px; background:rgba(0,0,0,0.5);
+    color:#fff; font-size:18px; font-weight:bold; cursor:pointer; text-align:center; transition:0.2s; }
+.menu-btn:active { transform:scale(0.96); }
+.menu-btn.start { border-color:#00ff88; background:rgba(0,255,136,0.15); color:#00ff88; font-size:22px; }
+.menu-btn.shop { border-color:#ffcc00; color:#ffcc00; }
+.menu-btn.equip { border-color:#00ccff; color:#00ccff; }
+.menu-btn.stats { border-color:#cc66ff; color:#cc66ff; }
+#menu-currency { display:flex; gap:20px; font-size:16px; margin-bottom:10px; }
+#menu-currency span { padding:4px 12px; border-radius:20px; }
+.gold-display { background:rgba(255,200,0,0.2); border:1px solid #ffcc00; }
+.diamond-display { background:rgba(0,150,255,0.2); border:1px solid #00aaff; }
 
-/* 玩家HP条 */
-#player-hp-container { position:absolute; bottom: 10px; left: 5%; width: 90%; height: 20px; }
+/* === 商店 === */
+#shop-screen { background:rgba(0,0,0,0.95); padding:20px; }
+#shop-screen h2 { text-align:center; color:#ffcc00; font-size:24px; margin-bottom:15px; }
+.shop-item { display:flex; align-items:center; padding:12px; margin:8px 0; background:rgba(30,30,60,0.8);
+    border:1px solid #444; border-radius:10px; justify-content:space-between; }
+.shop-item .info { flex:1; }
+.shop-item .info h3 { margin:0; color:#fff; font-size:16px; }
+.shop-item .info p { margin:2px 0 0; color:#aaa; font-size:12px; }
+.shop-btn { padding:8px 16px; border:1px solid #ffcc00; background:rgba(255,200,0,0.15); color:#ffcc00;
+    border-radius:8px; cursor:pointer; font-size:14px; }
+.back-btn { margin-top:auto; margin-bottom:20px; padding:12px; border:1px solid #888; background:rgba(100,100,100,0.2);
+    color:#fff; border-radius:10px; cursor:pointer; text-align:center; font-size:16px; }
 
-/* 经验条 */
-#xp-container { position: absolute; bottom: 32px; left: 5%; width: 90%; height: 14px; }
-#xp-fill { height: 100%; background: linear-gradient(90deg, #ffcc00, #ff8800); width: 0%; transition: width 0.3s; border-radius: 4px; }
+/* === 装备 === */
+#equip-screen { background:rgba(0,0,0,0.95); padding:20px; }
+#equip-screen h2 { text-align:center; color:#00ccff; font-size:24px; margin-bottom:15px; }
+.weapon-card { display:flex; align-items:center; padding:12px; margin:8px 0; background:rgba(30,30,60,0.8);
+    border:1px solid #444; border-radius:10px; }
+.weapon-card.unlocked { border-color:#00ff88; }
+.weapon-card .w-icon { font-size:32px; margin-right:12px; }
+.weapon-card .w-info h3 { margin:0; font-size:15px; }
+.weapon-card .w-info p { margin:2px 0 0; color:#aaa; font-size:12px; }
 
-/* 技能选择菜单 */
-#skill-menu { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.9); pointer-events: auto; flex-direction: column;
-    justify-content: center; align-items: center; backdrop-filter: blur(5px); z-index: 100; }
-#skill-menu h2 { color: #00ff88; text-shadow: 0 0 10px #00ff88; margin-bottom: 5px; font-size: 24px; }
-#skill-menu .subtitle { color: #aaa; margin-bottom: 20px; font-size: 14px; }
-.skill-card { width: 85%; max-width: 420px; background: linear-gradient(135deg, #1a1a3a, #0a0a2a);
-    border: 2px solid #336; color: white; padding: 16px; margin: 8px 0; border-radius: 14px;
-    display: flex; align-items: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,100,255,0.3);
-    transition: transform 0.15s, border-color 0.15s; }
-.skill-card:active { transform: scale(0.97); }
-.skill-card:hover { border-color: #00ff88; }
-.skill-icon { font-size: 36px; margin-right: 15px; min-width: 40px; text-align: center; }
-.skill-info h3 { margin: 0; color: #00ffff; font-size: 17px; }
-.skill-info p { margin: 4px 0 0; color: #bbb; font-size: 13px; }
-.skill-rarity { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
-.rarity-common { background: #555; color: #fff; }
-.rarity-rare { background: #0066cc; color: #fff; }
-.rarity-epic { background: #aa00cc; color: #fff; }
-.rarity-legendary { background: #cc6600; color: #fff; }
+/* === 永久升级 === */
+#upgrade-panel { position:absolute; top:60px; left:10px; right:10px; background:rgba(0,0,0,0.9);
+    border:1px solid #ffcc00; border-radius:12px; padding:15px; display:none; z-index:200; }
+.upgrade-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #333; }
+.upgrade-row:last-child { border:none; }
+.upgrade-btn { padding:6px 12px; background:rgba(255,200,0,0.2); border:1px solid #ffcc00; color:#ffcc00;
+    border-radius:6px; cursor:pointer; font-size:12px; }
 
-/* 游戏结束 */
-#game-over { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.9); pointer-events: auto; flex-direction: column;
-    justify-content: center; align-items: center; color: white; }
-#restart { padding: 15px 40px; background: #ff3333; border: none; color: white; font-size: 20px;
-    border-radius: 8px; margin-top: 20px; cursor: pointer; }
+/* === 战斗UI === */
+#battle-ui { pointer-events:none; }
+#progress-container { position:absolute; top:8px; left:5%; width:90%; height:16px; }
+#progress-bar { width:100%; height:100%; background:#222; border-radius:8px; overflow:hidden; border:1px solid #555; }
+#progress-fill { height:100%; background:linear-gradient(90deg,#00ff88,#00ffff); width:0%; transition:width 0.5s; }
+#progress-text { position:absolute; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:bold; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.8); }
 
-/* 关卡过渡 */
-#level-announce {
-    display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    color: #00ff88; font-size: 48px; font-weight: bold; text-shadow: 0 0 20px #00ff88;
-    pointer-events: none; text-align: center; animation: pulse 1s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.1); } }
+#boss-hp-container { position:absolute; top:30px; left:5%; width:90%; height:20px; display:none; }
+#boss-hp-bg { width:100%; height:14px; background:#333; border:2px solid #555; border-radius:7px; overflow:hidden; }
+#boss-hp-fill { height:100%; background:linear-gradient(90deg,#ff0000,#ff6600); width:100%; transition:width 0.1s; }
+#boss-name { text-align:center; color:#ff3333; font-size:14px; margin-bottom:2px; text-shadow:0 0 5px red; }
+
+#pause-btn { position:absolute; top:8px; right:10px; pointer-events:auto; padding:6px 14px;
+    background:rgba(0,0,0,0.6); border:1px solid #888; border-radius:8px; color:#fff; cursor:pointer; font-size:16px; }
+
+#weapon-bar { position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+    display:flex; gap:4px; pointer-events:auto; }
+.weapon-slot { width:44px; height:44px; background:rgba(20,20,40,0.9); border:2px solid #555;
+    border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:10px; color:#aaa; position:relative; }
+.weapon-slot .icon { font-size:18px; }
+
+#player-hp-container { position:absolute; bottom:6px; left:5%; width:90%; height:16px; }
+#player-hp-bg { width:100%; height:100%; background:#333; border:1px solid #555; border-radius:5px; overflow:hidden; }
+#player-hp-fill { height:100%; background:linear-gradient(90deg,#00ff88,#00ffff); width:100%; transition:width 0.1s; }
+
+#gold-display { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:14px;
+    color:#ffcc00; pointer-events:none; display:none; }
+
+/* === 技能菜单 === */
+#skill-menu { background:rgba(0,0,0,0.92); justify-content:center; align-items:center; gap:8px; z-index:300; }
+#skill-menu h2 { color:#00ff88; font-size:22px; text-shadow:0 0 10px #00ff88; margin:0; }
+#skill-menu .sub { color:#aaa; font-size:13px; margin:0; }
+.skill-card { width:88%; max-width:400px; background:linear-gradient(135deg,#1a1a3a,#0a0a2a);
+    border:2px solid #336; border-radius:12px; padding:14px; display:flex; align-items:center; cursor:pointer;
+    box-shadow:0 4px 15px rgba(0,100,255,0.3); }
+.skill-card:active { transform:scale(0.97); }
+.skill-card .s-icon { font-size:30px; margin-right:12px; }
+.skill-card .s-info h3 { margin:0; color:#00ffff; font-size:15px; }
+.skill-card .s-info p { margin:3px 0 0; color:#bbb; font-size:12px; }
+.rarity { font-size:9px; padding:1px 5px; border-radius:3px; margin-top:3px; display:inline-block; }
+.r-common { background:#555; } .r-rare { background:#06c; } .r-epic { background:#a0c; } .r-legendary { background:#c60; }
+
+/* === 宝箱节点提示 === */
+.chest-indicator { position:absolute; top:55px; left:50%; transform:translateX(-50%);
+    background:rgba(255,200,0,0.3); border:1px solid #ffcc00; border-radius:8px; padding:4px 12px;
+    font-size:12px; color:#ffcc00; pointer-events:none; display:none; }
+
+/* === 结算面板 === */
+#settle-screen { background:rgba(0,0,0,0.95); justify-content:center; align-items:center; gap:12px; z-index:400; }
+#settle-screen h2 { font-size:32px; margin:0; }
+.settle-win { color:#00ff88; text-shadow:0 0 15px #00ff88; }
+.settle-lose { color:#ff3333; text-shadow:0 0 15px red; }
+.settle-stats { font-size:16px; color:#aaa; text-align:center; }
+.settle-btn { width:80%; max-width:280px; padding:14px; border-radius:12px; font-size:18px;
+    font-weight:bold; cursor:pointer; text-align:center; }
+.settle-btn.double { border:2px solid #ffcc00; background:rgba(255,200,0,0.15); color:#ffcc00; }
+.settle-btn.retry { border:2px solid #00ff88; background:rgba(0,255,136,0.15); color:#00ff88; }
+
+/* === 离线收益 === */
+#offline-screen { background:rgba(0,0,0,0.95); justify-content:center; align-items:center; gap:12px; z-index:500; }
+#offline-screen h2 { color:#ffcc00; font-size:24px; margin:0; }
+.offline-reward { font-size:18px; color:#00ff88; text-align:center; }
+
+/* === 暂停 === */
+#pause-menu { background:rgba(0,0,0,0.85); justify-content:center; align-items:center; gap:15px; z-index:250; }
+#pause-menu h2 { color:#fff; font-size:28px; margin:0; }
+.pause-btn { width:60%; max-width:250px; padding:12px; border-radius:10px; font-size:16px;
+    cursor:pointer; text-align:center; border:1px solid #888; background:rgba(100,100,100,0.2); color:#fff; }
+
+/* === 战力显示 === */
+#power-display { position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+    color:#aaa; font-size:12px; pointer-events:none; }
 </style>
 </head>
 <body>
+
 <canvas id="game"></canvas>
-<div id="ui">
-    <div id="hud">
-        <span>📋 关卡: <span id="level">1</span></span>
-        <span>🏆 分数: <span id="score">0</span></span>
-        <span>⏱️ <span id="time">00:00</span></span>
-    </div>
 
-    <div id="boss-hp-container">
-        <div id="boss-name">🐉 鬼新娘邪龙</div>
-        <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
+<!-- 主菜单 -->
+<div id="menu-screen" class="screen active">
+    <h1>🐉 看谁能打过</h1>
+    <div class="subtitle">Roguelike 策略射击</div>
+    <div id="menu-currency">
+        <span class="gold-display">💰 <span id="menu-gold">0</span></span>
+        <span class="diamond-display">💎 <span id="menu-diamond">0</span></span>
     </div>
+    <button class="menu-btn start" onclick="startGame()">⚔️ 开始战斗</button>
+    <button class="menu-btn equip" onclick="showScreen('equip-screen')">🔧 装备</button>
+    <button class="menu-btn shop" onclick="showScreen('shop-screen')">🛒 商店</button>
+    <button class="menu-btn stats" onclick="toggleUpgradePanel()">📈 永久升级</button>
+    <div id="power-display">推荐战力: <span id="power-val">100</span></div>
+</div>
 
-    <div id="level-announce"></div>
+<!-- 商店 -->
+<div id="shop-screen" class="screen">
+    <h2>🛒 商店</h2>
+    <div class="shop-item"><div class="info"><h3>🗝️ 扫荡券 x3</h3><p>快速完成3场战斗</p></div><button class="shop-btn" onclick="buyItem('sweep',100)">💰100</button></div>
+    <div class="shop-item"><div class="info"><h3>🎁 随机武器箱</h3><p>解锁一把新武器</p></div><button class="shop-btn" onclick="buyItem('weaponbox',500)">💰500</button></div>
+    <div class="shop-item"><div class="info"><h3>💎 钻石 x10</h3><p>稀缺货币，用于抽卡</p></div><button class="shop-btn" onclick="buyItem('diamonds',50)">💰50</button></div>
+    <button class="back-btn" onclick="showScreen('menu-screen')">← 返回</button>
+</div>
 
-    <!-- XP条 -->
-    <div id="xp-container">
-        <div style="text-align:center;color:#ffcc00;font-size:10px;margin-bottom:1px;">⚡ XP</div>
-        <div style="width:100%;height:8px;background:#333;border-radius:4px;overflow:hidden;">
-            <div id="xp-fill"></div>
-        </div>
+<!-- 装备 -->
+<div id="equip-screen" class="screen">
+    <h2>🔧 装备</h2>
+    <div id="equip-list"></div>
+    <button class="back-btn" onclick="showScreen('menu-screen')">← 返回</button>
+</div>
+
+<!-- 永久升级面板 -->
+<div id="upgrade-panel">
+    <h3 style="margin:0 0 10px;color:#ffcc00;">📈 永久升级</h3>
+    <div class="upgrade-row"><span>❤️ 生命上限 Lv.<span id="up-hp-lv">1</span></span><button class="upgrade-btn" onclick="upgradeStat('hp')">💰<span id="up-hp-cost">50</span></button></div>
+    <div class="upgrade-row"><span>⚔️ 基础攻击 Lv.<span id="up-atk-lv">1</span></span><button class="upgrade-btn" onclick="upgradeStat('atk')">💰<span id="up-atk-cost">50</span></button></div>
+    <div class="upgrade-row"><span>⚡ 攻击速度 Lv.<span id="up-spd-lv">1</span></span><button class="upgrade-btn" onclick="upgradeStat('spd')">💰<span id="up-spd-cost">50</span></button></div>
+    <button class="back-btn" style="margin:10px 0 0;padding:8px;" onclick="toggleUpgradePanel()">关闭</button>
+</div>
+
+<!-- 战斗UI -->
+<div id="battle-ui" class="screen">
+    <div id="progress-container">
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="progress-text">关卡 1 - 进度 0%</div>
     </div>
+    <div id="gold-display">💰 <span id="battle-gold">0</span></div>
+    <div id="boss-hp-container"><div id="boss-name">🐉 Boss</div><div id="boss-hp-bg"><div id="boss-hp-fill"></div></div></div>
+    <div id="chest-indicator">🎁 宝箱节点: 剩余 <span id="chest-count">0</span></div>
+    <div id="weapon-bar"></div>
+    <div id="player-hp-container"><div id="player-hp-bg"><div id="player-hp-fill"></div></div></div>
+    <button id="pause-btn" onclick="showPauseMenu()">⏸</button>
+</div>
 
-    <!-- 武器槽 -->
-    <div id="weapon-bar">
-        <div class="weapon-slot" id="ws0"><span class="icon">💥</span><span style="font-size:9px;">基础弹</span></div>
-        <div class="weapon-slot" id="ws1"><span class="icon">?</span></div>
-        <div class="weapon-slot" id="ws2"><span class="icon">?</span></div>
-        <div class="weapon-slot" id="ws3"><span class="icon">?</span></div>
-        <div class="weapon-slot" id="ws4"><span class="icon">?</span></div>
-        <div class="weapon-slot" id="ws5"><span class="icon">?</span></div>
-    </div>
+<!-- 技能选择 -->
+<div id="skill-menu" class="screen">
+    <h2>⬆️ 击破宝箱! 选择词条</h2>
+    <p class="sub" id="skill-sub-info">等级 2</p>
+    <div id="skills-container" style="width:100%;display:flex;flex-direction:column;align-items:center;"></div>
+</div>
 
-    <!-- 玩家HP条 -->
-    <div id="player-hp-container">
-        <div style="text-align:center;color:#00ffff;font-size:14px;margin-bottom:2px;text-shadow:0 0 5px cyan;">🛡️ 玩家 HP</div>
-        <div style="width:100%;height:12px;background:#333;border:2px solid #555;border-radius:6px;overflow:hidden;">
-            <div id="player-hp-fill" style="height:100%;background:linear-gradient(90deg,#00ff88,#00ffff);width:100%;transition:width 0.1s;"></div>
-        </div>
-    </div>
+<!-- 暂停菜单 -->
+<div id="pause-menu" class="screen">
+    <h2>⏸ 暂停</h2>
+    <button class="pause-btn" onclick="hidePauseMenu()">▶ 继续战斗</button>
+    <button class="pause-btn" onclick="showScreen('menu-screen');hidePauseMenu();gameState='gameover';">🏠 返回主页</button>
+</div>
 
-    <!-- 技能选择菜单 -->
-    <div id="skill-menu">
-        <h2>⬆️ 升级! 选择词条</h2>
-        <div class="subtitle" id="level-up-info">等级 2</div>
-        <div id="skills-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
-    </div>
+<!-- 结算面板 -->
+<div id="settle-screen" class="screen">
+    <h2 id="settle-title"></h2>
+    <div class="settle-stats" id="settle-stats"></div>
+    <button class="settle-btn double" onclick="doubleReward()">📺 双倍奖励</button>
+    <button class="settle-btn retry" onclick="showScreen('menu-screen');initMenu();">🔄 再来一局</button>
+</div>
 
-    <div id="game-over">
-        <h1 style="color: #ff3333; font-size: 40px; text-shadow: 0 0 10px red;">💀 防线崩溃</h1>
-        <p style="font-size: 20px;">最终分数: <span id="final-score" style="color: #00ff88">0</span></p>
-        <button id="restart" onclick="restartGame()">不服再来</button>
-    </div>
+<!-- 离线收益 -->
+<div id="offline-screen" class="screen">
+    <h2>🎁 离线收益</h2>
+    <div class="offline-reward" id="offline-reward"></div>
+    <button class="settle-btn retry" onclick="showScreen('menu-screen');initMenu();">领取</button>
 </div>
 
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 let W, H;
-
-function resize() {
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = W; canvas.height = H;
-}
+function resize(){ W=window.innerWidth; H=window.innerHeight; canvas.width=W; canvas.height=H; }
 window.addEventListener('resize', resize); resize();
 
-let gameState = 'playing';
-let score = 0, time = 0, screenShake = 0;
-
-const player = {
-    x: W/2, y: H - 80, radius: 30,
-    hp: 1000, maxHp: 1000,
-    damage: 50, fireRate: 25, fireTimer: 0,
-    level: 1, xp: 0, xpToNext: 100,
-    bulletCount: 1, pierce: 0,
-    hasAngel: false, angelCount: 0
+// ========== 存档系统 ==========
+let save = {
+    gold: 0, diamonds: 0,
+    upgrades: { hp:1, atk:1, spd:1 },
+    weapons: ['basic'], // 已解锁武器
+    equipped: 'basic',
+    lastOnline: Date.now(),
+    totalKills: 0,
+    highestLevel: 0
 };
 
-let bullets = [], boss = null, angels = [], particles = [], damageNums = [];
+function loadSave(){
+    try { const s=localStorage.getItem('game_save'); if(s) save=JSON.parse(s); } catch(e){}
+}
+function saveGame(){ save.lastOnline=Date.now(); localStorage.setItem('game_save',JSON.stringify(save)); }
+loadSave();
 
-// ========== 关卡配置 ==========
-let currentLevel = 1, levelTheme = null, bossMode = null;
-
-const MONSTER_THEMES = [
-    { name: '绿色病毒', color: '#00ff00', eyeColor: '#ffffff', speed: 1.0 },
-    { name: '紫色细菌', color: '#aa00ff', eyeColor: '#ff00ff', speed: 1.1 },
-    { name: '橙色寄生虫', color: '#ff8800', eyeColor: '#ffcc00', speed: 1.3 },
-    { name: '蓝色冰晶', color: '#00aaff', eyeColor: '#88ffff', speed: 0.9 },
-    { name: '红色炎虫', color: '#ff0000', eyeColor: '#ffff00', speed: 1.2 },
-];
-
-const BOSS_MODES = [
-    { name: '标准长龙', type: 'dragon' },
-    { name: '单只大Boss', type: 'single' },
-    { name: '双龙并行', type: 'dual' },
-];
-
-function generateLevel(lv) {
-    currentLevel = lv;
-    document.getElementById('level').innerText = lv;
-    levelTheme = MONSTER_THEMES[Math.floor((lv-1)/15) % MONSTER_THEMES.length];
-    bossMode = BOSS_MODES[Math.floor((lv-1)/25) % BOSS_MODES.length];
-    const bossHP = 5000 + lv * 500;
-    player.damage = 50 + (lv-1) * 10;
-    document.getElementById('boss-name').innerText = `🐉 ${levelTheme.name} Lv.${lv}`;
-    return { bossHP };
+// 离线收益
+function checkOffline(){
+    const elapsed = (Date.now() - save.lastOnline) / 1000; // 秒
+    if(elapsed > 60){ // 超过1分钟
+        const goldEarned = Math.floor(elapsed * 0.5 * (1 + save.upgrades.atk * 0.1));
+        const diamondsEarned = Math.floor(elapsed * 0.01);
+        save.gold += goldEarned;
+        save.diamonds += diamondsEarned;
+        document.getElementById('offline-reward').innerHTML = `离线 ${Math.floor(elapsed/60)} 分钟<br>获得 💰${goldEarned} 金币<br>获得 💎${diamondsEarned} 钻石`;
+        showScreen('offline-screen');
+        saveGame();
+    }
 }
 
-function nextLevel() {
-    score += 1000 + currentLevel * 100;
-    player.hp = Math.min(player.maxHp, player.hp + 300);
-    generateLevel(currentLevel + 1);
-    showLevelAnnounce(`第 ${currentLevel} 关`);
-    setTimeout(() => { boss = createBossForMode(bossMode); document.getElementById('boss-hp-fill').style.width = '100%'; }, 1500);
+// ========== 屏幕切换 ==========
+function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    const el=document.getElementById(id); if(el) el.classList.add('active');
+    if(id==='menu-screen') initMenu();
+    if(id==='equip-screen') renderEquip();
+    if(id==='shop-screen') {}
 }
 
-function showLevelAnnounce(text) {
-    const el = document.getElementById('level-announce');
-    el.style.display = 'block'; el.innerText = text;
-    setTimeout(() => el.style.display = 'none', 2000);
+function initMenu(){
+    document.getElementById('menu-gold').innerText = save.gold;
+    document.getElementById('menu-diamond').innerText = save.diamonds;
+    const power = save.upgrades.atk*20 + save.upgrades.hp*10 + save.upgrades.spd*15 + save.weapons.length*50;
+    document.getElementById('power-val').innerText = power;
 }
+
+// ========== 商店 ==========
+function buyItem(type, cost){
+    if(save.gold < cost) return alert('金币不足!');
+    save.gold -= cost;
+    if(type==='sweep') { save.gold += 200; alert('扫荡完成! 获得 💰200'); }
+    else if(type==='weaponbox'){
+        const allW = ['basic','pill','syringe','dagger','satellite','tide_stone','med_swab'];
+        const available = allW.filter(w=>!save.weapons.includes(w));
+        if(available.length){ const w=available[Math.floor(Math.random()*available.length)]; save.weapons.push(w); alert(`获得新武器: ${WEAPONS[w].name}`); }
+        else alert('所有武器已解锁!');
+    }
+    else if(type==='diamonds') { save.diamonds += 10; alert('获得 💎10'); }
+    saveGame(); initMenu();
+}
+
+// ========== 永久升级 ==========
+function toggleUpgradePanel(){
+    const p=document.getElementById('upgrade-panel');
+    p.style.display = p.style.display==='block'?'none':'block';
+    renderUpgradePanel();
+}
+function renderUpgradePanel(){
+    const u=save.upgrades;
+    document.getElementById('up-hp-lv').innerText=u.hp;
+    document.getElementById('up-atk-lv').innerText=u.atk;
+    document.getElementById('up-spd-lv').innerText=u.spd;
+    document.getElementById('up-hp-cost').innerText=u.hp*50;
+    document.getElementById('up-atk-cost').innerText=u.atk*50;
+    document.getElementById('up-spd-cost').innerText=u.spd*50;
+}
+function upgradeStat(stat){
+    const cost = save.upgrades[stat]*50;
+    if(save.gold<cost) return alert('金币不足!');
+    save.gold -= cost;
+    save.upgrades[stat]++;
+    saveGame(); renderUpgradePanel(); initMenu();
+}
+
+// ========== 装备 ==========
+const WEAPONS = {
+    basic: { name:'基础弹', icon:'💥', desc:'垂直发射子弹', tier:'T3', effect:{} },
+    pill: { name:'药丸', icon:'💊', desc:'高触发率，随机特效', tier:'T1', effect:{ triggerRate:0.15 } },
+    syringe: { name:'针灸', icon:'🪡', desc:'穿透+分裂', tier:'T0', effect:{ pierce:2, splitChance:0.2 } },
+    dagger: { name:'旋转匕首', icon:'🗡️', desc:'近战环形攻击', tier:'T2', effect:{ melee:true, range:80, rate:30 } },
+    satellite: { name:'卫星风暴', icon:'🛰️', desc:'范围爆发', tier:'T1', effect:{ aoe:true, radius:60, rate:90 } },
+    tide_stone: { name:'潮汐之石', icon:'🌊', desc:'减速控场', tier:'T2', effect:{ slow:0.7, rate:40 } },
+    med_swab: { name:'医用棉签', icon:'🩹', desc:'Boss双倍伤害+控制', tier:'T0', effect:{ bossDmg:2, stunChance:0.1 } },
+    lab_mouth: { name:'实验之口', icon:'👄', desc:'大范围持续伤害', tier:'T0', effect:{ continuous:true, radius:100, rate:60 } },
+};
+
+function renderEquip(){
+    const list = document.getElementById('equip-list');
+    list.innerHTML = '';
+    Object.keys(WEAPONS).forEach(k => {
+        const w = WEAPONS[k];
+        const unlocked = save.weapons.includes(k);
+        const equipped = save.equipped === k;
+        const card = document.createElement('div');
+        card.className = 'weapon-card' + (unlocked ? ' unlocked' : '');
+        card.innerHTML = `<div class="w-icon">${w.icon}</div><div class="w-info"><h3>${w.name} <span style="color:${w.tier==='T0'?'#ff6600':w.tier==='T1'?'#ffcc00':'#888'}">[${w.tier}]</span></h3><p>${w.desc}</p>${!unlocked?'<p style="color:#f44">🔒 未解锁</p>':equipped?'<p style="color:#0f8">✅ 已装备</p>':''}</div>`;
+        if(unlocked && !equipped){
+            const btn = document.createElement('button');
+            btn.style.cssText='padding:6px 12px;background:rgba(0,255,136,0.2);border:1px solid #0f8;color:#0f8;border-radius:6px;cursor:pointer;';
+            btn.innerText = '装备';
+            btn.onclick = () => { save.equipped=k; saveGame(); renderEquip(); };
+            card.appendChild(btn);
+        }
+        list.appendChild(card);
+    });
+}
+
+// ========== 武器属性计算 ==========
+function getPlayerStats(){
+    const w = WEAPONS[save.equipped] || WEAPONS.basic;
+    return {
+        hp: 1000 + (save.upgrades.hp-1)*200,
+        damage: 50 + (save.upgrades.atk-1)*20,
+        fireRate: Math.max(5, 25 - (save.upgrades.spd-1)*3),
+        weapon: w
+    };
+}
+
+// ========== 战斗系统 ==========
+let gameState = 'menu'; // menu, playing, paused, skillSelect, gameover
+let player, boss, bullets, angels, particles, damageNums;
+let currentLevel = 1, levelTime = 0, levelDuration = 3600; // 60秒通关(60fps)
+let battleGold = 0;
+let chestNodes = []; // 宝箱节点
+let chestCounter = 0;
+let skills = []; // 已选技能
+let lastSettleReward = 0;
 
 // ========== 30种技能词条 ==========
 const ALL_SKILLS = [
-    // 攻击类
-    { id: 'dmg1', name: '🔥 伤害+15%', desc: '基础伤害提升15%', icon: '🔥', rarity: 'common', apply: () => { player.damage = Math.floor(player.damage * 1.15); }, cat: '攻击' },
-    { id: 'dmg2', name: '💥 伤害+30%', desc: '基础伤害提升30%', icon: '💥', rarity: 'rare', apply: () => { player.damage = Math.floor(player.damage * 1.30); }, cat: '攻击' },
-    { id: 'dmg3', name: '☄️ 伤害+50%', desc: '基础伤害提升50%', icon: '☄️', rarity: 'epic', apply: () => { player.damage = Math.floor(player.damage * 1.50); }, cat: '攻击' },
-    { id: 'rate1', name: '⚡ 射速+10%', desc: '射击间隔缩短10%', icon: '⚡', rarity: 'common', apply: () => { player.fireRate = Math.max(5, Math.floor(player.fireRate * 0.90)); }, cat: '攻击' },
-    { id: 'rate2', name: '⚡⚡ 射速+20%', desc: '射击间隔缩短20%', icon: '⚡', rarity: 'rare', apply: () => { player.fireRate = Math.max(3, Math.floor(player.fireRate * 0.80)); }, cat: '攻击' },
-    { id: 'bullet1', name: '🔱 弹数+1', desc: '每次多发射1颗子弹', icon: '🔱', rarity: 'common', apply: () => { player.bulletCount++; }, cat: '攻击' },
-    { id: 'bullet2', name: '🔱🔱 弹数+2', desc: '每次多发射2颗子弹', icon: '🔱', rarity: 'rare', apply: () => { player.bulletCount += 2; }, cat: '攻击' },
-    { id: 'pierce1', name: '💎 穿透+1', desc: '子弹可穿透1个目标', icon: '💎', rarity: 'common', apply: () => { player.pierce++; }, cat: '攻击' },
-    { id: 'pierce2', name: '💎💎 穿透+3', desc: '子弹可穿透3个目标', icon: '💎', rarity: 'epic', apply: () => { player.pierce += 3; }, cat: '攻击' },
-    // 特效类
-    { id: 'explode', name: '💣 爆炸弹', desc: '命中时产生小范围爆炸', icon: '💣', rarity: 'epic', apply: () => { player.hasExplode = true; }, cat: '特效' },
-    { id: 'freeze', name: '❄️ 冰冻弹', desc: '命中后减速BOSS30%', icon: '❄️', rarity: 'rare', apply: () => { player.hasFreeze = true; }, cat: '特效' },
-    { id: 'lightning', name: '⚡ 闪电链', desc: '命中后弹射2次', icon: '⚡', rarity: 'epic', apply: () => { player.hasLightning = true; }, cat: '特效' },
-    { id: 'poison', name: '🧪 毒雾弹', desc: '命中后持续掉毒伤3秒', icon: '🧪', rarity: 'rare', apply: () => { player.hasPoison = true; }, cat: '特效' },
-    { id: 'fire', name: '🔥 燃烧弹', desc: '命中后持续灼烧2秒', icon: '🔥', rarity: 'common', apply: () => { player.hasBurn = true; }, cat: '特效' },
-    { id: 'split', name: '✂️ 分裂弹', desc: '飞行中分裂成3颗', icon: '✂️', rarity: 'epic', apply: () => { player.hasSplit = true; }, cat: '特效' },
-    { id: 'homing', name: '🎯 追踪弹', desc: '子弹自动追踪BOSS', icon: '🎯', rarity: 'rare', apply: () => { player.hasHoming = true; }, cat: '特效' },
-    { id: 'bounce', name: '🏀 弹射弹', desc: '碰到墙壁反弹', icon: '🏀', rarity: 'common', apply: () => { player.hasBounce = true; }, cat: '特效' },
-    // 防御类
-    { id: 'hp1', name: '❤️ HP+300', desc: '生命上限+300并回满', icon: '❤️', rarity: 'common', apply: () => { player.maxHp += 300; player.hp = player.maxHp; }, cat: '防御' },
-    { id: 'hp2', name: '❤️❤️ HP+600', desc: '生命上限+600并回满', icon: '❤️', rarity: 'rare', apply: () => { player.maxHp += 600; player.hp = player.maxHp; }, cat: '防御' },
-    { id: 'regen', name: '💚 生命恢复', desc: '每秒回复1%最大HP', icon: '💚', rarity: 'rare', apply: () => { player.hasRegen = true; }, cat: '防御' },
-    { id: 'shield', name: '🛡️ 护盾', desc: '抵挡一次致命伤害', icon: '🛡️', rarity: 'epic', apply: () => { player.hasShield = true; }, cat: '防御' },
-    { id: 'dodge', name: '💨 闪避+10%', desc: '10%概率闪避伤害', icon: '💨', rarity: 'rare', apply: () => { player.dodgeRate = (player.dodgeRate||0) + 0.1; }, cat: '防御' },
-    // 辅助类
-    { id: 'angel1', name: '👼 天使+1', desc: '召唤一个天使助战', icon: '👼', rarity: 'common', apply: () => { if(!player.hasAngel){player.hasAngel=true;player.angelCount=1;}else{player.angelCount++;} }, cat: '辅助' },
-    { id: 'angel2', name: '👼👼 天使+2', desc: '再召唤两个天使', icon: '👼', rarity: 'rare', apply: () => { if(!player.hasAngel){player.hasAngel=true;player.angelCount=2;}else{player.angelCount+=2;} }, cat: '辅助' },
-    { id: 'xp1', name: '📖 经验+30%', desc: '获得经验提升30%', icon: '📖', rarity: 'common', apply: () => { player.xpBonus = (player.xpBonus||1) + 0.3; }, cat: '辅助' },
-    { id: 'gold1', name: '💰 金币+20%', desc: '过关额外获得20%分数', icon: '💰', rarity: 'common', apply: () => { player.goldBonus = (player.goldBonus||1) + 0.2; }, cat: '辅助' },
-    { id: 'crit1', name: '⭐ 暴击+10%', desc: '10%概率造成2倍伤害', icon: '⭐', rarity: 'common', apply: () => { player.critRate = (player.critRate||0) + 0.1; }, cat: '攻击' },
-    { id: 'crit2', name: '⭐⭐ 暴击+20%', desc: '20%概率造成3倍伤害', icon: '⭐', rarity: 'epic', apply: () => { player.critRate = (player.critRate||0) + 0.2; player.critMult = 3; }, cat: '攻击' },
-    { id: 'slowboss', name: '🐌 减速Boss', desc: 'BOSS速度降低15%', icon: '🐌', rarity: 'rare', apply: () => { player.slowBoss = (player.slowBoss||1) * 0.85; }, cat: '辅助' },
-    { id: 'aoe', name: '🌀 范围伤害', desc: '命中时对周围造成溅射', icon: '🌀', rarity: 'epic', apply: () => { player.hasAOE = true; }, cat: '攻击' },
+    { id:'dmg15', name:'🔥 伤害+15%', desc:'基础伤害+15%', icon:'🔥', rarity:'common', cat:'攻击', apply:()=>{player.damage=Math.floor(player.damage*1.15);}, stackable:true },
+    { id:'dmg30', name:'💥 伤害+30%', desc:'基础伤害+30%', icon:'💥', rarity:'rare', cat:'攻击', apply:()=>{player.damage=Math.floor(player.damage*1.30);}, stackable:true },
+    { id:'dmg50', name:'☄️ 伤害+50%', desc:'基础伤害+50%', icon:'☄️', rarity:'epic', cat:'攻击', apply:()=>{player.damage=Math.floor(player.damage*1.50);}, stackable:true },
+    { id:'rate10', name:'⚡ 射速+10%', desc:'射击间隔-10%', icon:'⚡', rarity:'common', cat:'攻击', apply:()=>{player.fireRate=Math.max(3,Math.floor(player.fireRate*0.90));}, stackable:true },
+    { id:'rate20', name:'⚡⚡ 射速+20%', desc:'射击间隔-20%', icon:'⚡', rarity:'rare', cat:'攻击', apply:()=>{player.fireRate=Math.max(2,Math.floor(player.fireRate*0.80));}, stackable:true },
+    { id:'bullet1', name:'🔱 弹数+1', desc:'每次多射1弹', icon:'🔱', rarity:'common', cat:'攻击', apply:()=>{player.bulletCount++;}, stackable:true },
+    { id:'bullet2', name:'🔱🔱 弹数+2', desc:'每次多射2弹', icon:'🔱', rarity:'rare', cat:'攻击', apply:()=>{player.bulletCount+=2;}, stackable:true },
+    { id:'pierce1', name:'💎 穿透+1', desc:'穿透+1', icon:'💎', rarity:'common', cat:'攻击', apply:()=>{player.pierce++;}, stackable:true },
+    { id:'pierce3', name:'💎💎 穿透+3', desc:'穿透+3', icon:'💎', rarity:'epic', cat:'攻击', apply:()=>{player.pierce+=3;}, stackable:true },
+    { id:'crit10', name:'⭐ 暴击+10%', desc:'10%概率2倍伤', icon:'⭐', rarity:'common', cat:'攻击', apply:()=>{player.critRate=(player.critRate||0)+0.1;}, stackable:true },
+    { id:'crit20', name:'⭐⭐ 暴击+20%', desc:'20%概率3倍伤', icon:'⭐', rarity:'epic', cat:'攻击', apply:()=>{player.critRate=(player.critRate||0)+0.2;player.critMult=3;}, stackable:true },
+    { id:'aoe', name:'🌀 范围伤害', desc:'命中溅射周围', icon:'🌀', rarity:'epic', cat:'攻击', apply:()=>{player.hasAOE=true;}, stackable:false },
+    { id:'explode', name:'💣 爆炸弹', desc:'命中产生爆炸', icon:'💣', rarity:'epic', cat:'攻击', apply:()=>{player.hasExplode=true;}, stackable:false },
+    { id:'split', name:'✂️ 分裂弹', desc:'飞行中分裂', icon:'✂️', rarity:'epic', cat:'攻击', apply:()=>{player.hasSplit=true;}, stackable:false },
+    { id:'homing', name:'🎯 追踪弹', desc:'自动追踪BOSS', icon:'🎯', rarity:'rare', cat:'攻击', apply:()=>{player.hasHoming=true;}, stackable:false },
+    { id:'bounce', name:'🏀 弹射弹', desc:'碰墙反弹', icon:'🏀', rarity:'common', cat:'攻击', apply:()=>{player.hasBounce=true;}, stackable:false },
+    { id:'lightning', name:'⚡ 闪电链', desc:'命中弹射2次', icon:'⚡', rarity:'epic', cat:'攻击', apply:()=>{player.hasLightning=true;}, stackable:false },
+    { id:'freeze', name:'❄️ 冰冻弹', desc:'命中减速BOSS', icon:'❄️', rarity:'rare', cat:'攻击', apply:()=>{player.hasFreeze=true;}, stackable:false },
+    { id:'poison', name:'🧪 毒雾', desc:'持续掉毒伤3秒', icon:'🧪', rarity:'rare', cat:'攻击', apply:()=>{player.hasPoison=true;}, stackable:false },
+    { id:'burn', name:'🔥 燃烧', desc:'持续灼烧2秒', icon:'🔥', rarity:'common', cat:'攻击', apply:()=>{player.hasBurn=true;}, stackable:false },
+    { id:'hp300', name:'❤️ HP+300', desc:'上限+300并回满', icon:'❤️', rarity:'common', cat:'防御', apply:()=>{player.maxHp+=300;player.hp=player.maxHp;}, stackable:true },
+    { id:'hp600', name:'❤️❤️ HP+600', desc:'上限+600并回满', icon:'❤️', rarity:'rare', cat:'防御', apply:()=>{player.maxHp+=600;player.hp=player.maxHp;}, stackable:true },
+    { id:'regen', name:'💚 生命恢复', desc:'每秒回1%HP', icon:'💚', rarity:'rare', cat:'防御', apply:()=>{player.hasRegen=true;}, stackable:false },
+    { id:'shield', name:'🛡️ 护盾', desc:'抵挡一次致死', icon:'🛡️', rarity:'epic', cat:'防御', apply:()=>{player.hasShield=true;}, stackable:false },
+    { id:'dodge', name:'💨 闪避+10%', desc:'10%免伤', icon:'💨', rarity:'rare', cat:'防御', apply:()=>{player.dodgeRate=(player.dodgeRate||0)+0.1;}, stackable:true },
+    { id:'angel1', name:'👼 天使+1', desc:'召唤天使助战', icon:'👼', rarity:'common', cat:'召唤', apply:()=>{if(!player.hasAngel){player.hasAngel=true;player.angelCount=1;}else{player.angelCount++;}}, stackable:true },
+    { id:'angel2', name:'👼👼 天使+2', desc:'再召唤2天使', icon:'👼', rarity:'rare', cat:'召唤', apply:()=>{if(!player.hasAngel){player.hasAngel=true;player.angelCount=2;}else{player.angelCount+=2;}}, stackable:true },
+    { id:'xp30', name:'📖 经验+30%', desc:'升级更快', icon:'📖', rarity:'common', cat:'辅助', apply:()=>{player.xpBonus=(player.xpBonus||1)+0.3;}, stackable:true },
+    { id:'gold20', name:'💰 金币+20%', desc:'过关多20%金币', icon:'💰', rarity:'common', cat:'辅助', apply:()=>{player.goldBonus=(player.goldBonus||1)+0.2;}, stackable:true },
+    { id:'slowboss', name:'🐌 减速Boss', desc:'Boss速度-15%', icon:'🐌', rarity:'rare', cat:'辅助', apply:()=>{player.slowBoss=(player.slowBoss||1)*0.85;}, stackable:true },
 ];
 
-function getRandomSkills(count) {
-    let pool = [...ALL_SKILLS];
+function getRandomSkills(count){
+    let pool = ALL_SKILLS.filter(s => !s.stackable || !skills.includes(s.id));
     let result = [];
-    for(let i = 0; i < count && pool.length > 0; i++) {
-        // 稀有度权重
-        let weights = pool.map(s => s.rarity === 'legendary' ? 1 : s.rarity === 'epic' ? 3 : s.rarity === 'rare' ? 6 : 10);
-        let total = weights.reduce((a,b) => a+b, 0);
-        let r = Math.random() * total;
-        let idx = 0;
-        while(r > weights[idx]) r -= weights[idx++];
-        result.push(pool.splice(idx, 1)[0]);
+    for(let i=0; i<count && pool.length>0; i++){
+        let weights = pool.map(s=>s.rarity==='legendary'?1:s.rarity==='epic'?3:s.rarity==='rare'?6:10);
+        let total = weights.reduce((a,b)=>a+b,0);
+        let r=Math.random()*total, idx=0;
+        while(r>weights[idx]) r-=weights[idx++];
+        result.push(pool.splice(idx,1)[0]);
     }
     return result;
 }
 
-function showSkillMenu() {
-    gameState = 'paused';
-    const skills = getRandomSkills(3);
+function showSkillSelect(reason){
+    gameState = 'skillSelect';
     const container = document.getElementById('skills-container');
     container.innerHTML = '';
-    document.getElementById('level-up-info').innerText = `等级 ${player.level}`;
-    skills.forEach(skill => {
+    document.getElementById('skill-sub-info').innerText = reason;
+    const sks = getRandomSkills(3);
+    sks.forEach(skill => {
         const card = document.createElement('div');
         card.className = 'skill-card';
-        const rarityClass = `rarity-${skill.rarity}`;
-        const rarityLabel = {common:'普通',rare:'稀有',epic:'史诗',legendary:'传说'}[skill.rarity];
-        card.innerHTML = `<div class="skill-icon">${skill.icon}</div><div class="skill-info"><h3>${skill.name}</h3><p>${skill.desc}</p><span class="skill-rarity ${rarityClass}">[${rarityLabel}] ${skill.cat}</span></div>`;
-        card.onclick = () => { skill.apply(); updateWeaponBar(); hideSkillMenu(); };
+        const rClass = `r-${skill.rarity}`;
+        const rLabel = {common:'普通',rare:'稀有',epic:'史诗',legendary:'传说'}[skill.rarity];
+        card.innerHTML = `<div class="s-icon">${skill.icon}</div><div class="s-info"><h3>${skill.name}</h3><p>${skill.desc}</p><span class="rarity ${rClass}">[${rLabel}] ${skill.cat}</span></div>`;
+        card.onclick = () => { skill.apply(); skills.push(skill.id); updateWeaponBar(); hideSkillSelect(); };
         container.appendChild(card);
     });
-    document.getElementById('skill-menu').style.display = 'flex';
+    showScreen('skill-menu');
 }
-
-function hideSkillMenu() {
-    document.getElementById('skill-menu').style.display = 'none';
+function hideSkillSelect(){
+    document.getElementById('skill-menu').classList.remove('active');
     gameState = 'playing';
 }
 
-function gainXP(amount) {
-    if(gameState === 'paused') return;
-    amount *= (player.xpBonus || 1);
-    player.xp += Math.floor(amount);
-    document.getElementById('xp-fill').style.width = (player.xp / player.xpToNext * 100) + '%';
-    while(player.xp >= player.xpToNext) {
-        player.xp -= player.xpToNext;
-        player.level++;
-        player.xpToNext = Math.floor(100 * Math.pow(1.3, player.level - 1));
-        document.getElementById('xp-fill').style.width = (player.xp / player.xpToNext * 100) + '%';
-        showSkillMenu();
-    }
+// ========== 暂停 ==========
+function showPauseMenu(){ gameState='paused'; showScreen('pause-menu'); }
+function hidePauseMenu(){ document.getElementById('pause-menu').classList.remove('active'); gameState='playing'; }
+
+// ========== 结算 ==========
+function showSettlement(win){
+    gameState = 'gameover';
+    const title = document.getElementById('settle-title');
+    title.className = win ? 'settle-win' : 'settle-lose';
+    title.innerText = win ? '🎉 通关成功!' : '💀 防线崩溃';
+    const reward = Math.floor((100 + currentLevel * 50) * (player.goldBonus||1));
+    lastSettleReward = reward;
+    save.gold += reward;
+    save.totalKills += currentLevel;
+    if(currentLevel > save.highestLevel) save.highestLevel = currentLevel;
+    saveGame();
+    document.getElementById('settle-stats').innerHTML = `关卡: ${currentLevel}<br>获得 💰${reward} 金币`;
+    showScreen('settle-screen');
+}
+function doubleReward(){
+    save.gold += lastSettleReward;
+    saveGame();
+    document.getElementById('settle-stats').innerHTML += '<br>📺 双倍! 再获得 💰'+lastSettleReward;
+    setTimeout(()=>{ document.getElementById('settle-stats').innerHTML = document.getElementById('settle-stats').innerHTML.replace('<br>📺 双倍! 再获得 💰'+lastSettleReward,''); }, 3000);
 }
 
-function updateWeaponBar() {
-    const slots = [
-        { icon: '💥', name: '基础弹' },
-        { icon: player.bulletCount > 1 ? '🔱' : '?', name: player.bulletCount > 1 ? `弹x${player.bulletCount}` : '' },
-        { icon: player.pierce > 0 ? '💎' : '?', name: player.pierce > 0 ? `穿透x${player.pierce}` : '' },
-        { icon: player.hasExplode ? '💣' : '?', name: player.hasExplode ? '爆炸' : '' },
-        { icon: player.hasFreeze ? '❄️' : '?', name: player.hasFreeze ? '冰冻' : '' },
-        { icon: player.hasLightning ? '⚡' : '?', name: player.hasLightning ? '闪电' : '' },
-    ];
-    for(let i = 0; i < 6; i++) {
-        const el = document.getElementById('ws' + i);
-        if(slots[i]) {
-            el.querySelector('.icon').innerText = slots[i].icon;
-            el.querySelector('span:last-child').innerText = slots[i].name;
-        }
-    }
+// ========== 开始游戏 ==========
+function startGame(){
+    const stats = getPlayerStats();
+    player = {
+        x:W/2, y:H-80, radius:30,
+        hp:stats.hp, maxHp:stats.hp,
+        damage:stats.damage, fireRate:stats.fireRate, fireTimer:0,
+        bulletCount:1, pierce:0,
+        hasAngel:false, angelCount:0,
+        critRate:0, critMult:2, xpBonus:1, goldBonus:1,
+        slowBoss:1, dodgeRate:0,
+        hasAOE:false, hasExplode:false, hasSplit:false,
+        hasHoming:false, hasBounce:false, hasLightning:false,
+        hasFreeze:false, hasPoison:false, hasBurn:false,
+        hasRegen:false, hasShield:false,
+        weapon: stats.weapon
+    };
+    boss=null; bullets=[]; angels=[]; particles=[]; damageNums=[];
+    currentLevel=1; levelTime=0; battleGold=0; skills=[];
+    chestNodes=[]; chestCounter=0;
+    showScreen('battle-ui');
+    initLevel();
+    gameState='playing';
+    gameLoop();
 }
 
-// ========== 输入 ==========
-let inputX = W/2;
-const keys = {};
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
-window.addEventListener('mousemove', e => inputX = e.clientX);
-window.addEventListener('touchmove', e => { if(e.touches.length) inputX = e.touches[0].clientX; }, {passive: true});
+function initLevel(){
+    levelTime=0;
+    levelDuration = 3600 + currentLevel * 200; // 每关加长
+    generateBoss();
+    generateChestNodes();
+    updateProgress();
+}
 
-// ========== BOSS ==========
-class SnakeBoss {
-    constructor(theme, config) {
-        this.segments = []; this.segmentCount = 120;
-        this.maxHp = config ? config.bossHP || 5000 : 5000; this.hp = this.maxHp;
-        this.headX = W/2; this.headY = -100;
-        this.speed = 1.5 * (player.slowBoss || 1);
-        this.radius = 25; this.amplitude = 180; this.frequency = 0.03;
-        this.theme = theme || MONSTER_THEMES[0];
-        for(let i=0; i<this.segmentCount; i++) this.segments.push({ x:W/2, y:-100-i*10, alive: true });
+function generateBoss(){
+    const isBossLevel = currentLevel % 5 === 0;
+    const bossHP = isBossLevel ? 15000 + currentLevel*2000 : 5000 + currentLevel*500;
+    const bossSpeed = (1.5 + currentLevel*0.02) * (player.slowBoss||1);
+    if(isBossLevel){
+        boss = {
+            isBoss:true, headX:W/2, headY:-100,
+            hp:bossHP, maxHp:bossHP, speed:bossSpeed,
+            radius:30, amplitude:180, frequency:0.03,
+            segments:[], segmentCount:120,
+            name:`🐉 邪龙Boss Lv.${currentLevel}`,
+            update:bossUpdate, draw:bossDraw, takeDamage:bossTakeDamage
+        };
+        for(let i=0;i<120;i++) boss.segments.push({x:W/2, y:-100-i*10, alive:true});
+        document.getElementById('boss-hp-container').style.display='block';
+    } else {
+        boss = {
+            isBoss:false, headX:W/2, headY:-100,
+            hp:bossHP, maxHp:bossHP, speed:bossSpeed,
+            radius:25, amplitude:180, frequency:0.03,
+            segments:[], segmentCount:120,
+            name:`🐍 病毒Lv.${currentLevel}`,
+            update:bossUpdate, draw:bossDraw, takeDamage:bossTakeDamage
+        };
+        for(let i=0;i<120;i++) boss.segments.push({x:W/2, y:-100-i*10, alive:true});
+        document.getElementById('boss-hp-container').style.display='block';
     }
-    update() {
-        this.headY += this.speed * 0.5;
-        let maxY = H*0.45, minY = 80;
-        if(this.headY > maxY) { this.speed = Math.abs(this.speed); this.headY = maxY; }
-        if(this.headY < minY) { this.speed = -Math.abs(this.speed); this.headY = minY; }
-        this.headX = W/2 + Math.sin(this.headY*this.frequency + time*0.02) * this.amplitude;
-        if(this.headX < this.radius) this.headX = this.radius;
-        if(this.headX > W-this.radius) this.headX = W-this.radius;
+    document.getElementById('boss-name').innerText = boss.name;
+}
 
-        let last = this.segments[0];
-        let dist = Math.hypot(this.headX-last.x, this.headY-last.y);
-        if(dist > 8) {
-            this.segments.unshift({ x:this.headX, y:this.headY, alive: true });
-            if(this.segments.length > this.segmentCount) this.segments.pop();
-        }
+function generateChestNodes(){
+    chestNodes = [];
+    let pos = 10;
+    while(pos < boss.segmentCount - 10){
+        chestNodes.push(pos);
+        pos += 4 + Math.floor(Math.random()*3); // 每隔4-6个
+    }
+    document.getElementById('chest-count').innerText = chestNodes.length;
+    document.getElementById('chest-indicator').style.display = chestNodes.length > 0 ? 'block' : 'none';
+}
 
-        if(this.headY > player.y - 100) {
-            let d = Math.hypot(this.headX-player.x, this.headY-player.y);
-            if(d < this.radius + player.radius) {
-                if(player.dodgeRate && Math.random() < player.dodgeRate) { showDamage(player.x, player.y, '闪避!', false); }
-                else {
-                    player.hp -= 100; screenShake = 15;
-                    showDamage(player.x, player.y, 100, true);
-                    if(player.hp <= 0) { if(player.hasShield) { player.hasShield=false; player.hp=100; showDamage(player.x,player.y,'护盾!',false); } else gameOver(); }
+function bossUpdate(){
+    if(!boss) return;
+    boss.headY += boss.speed * 0.5;
+    let maxY=H*0.45, minY=80;
+    if(boss.headY>maxY){ boss.speed=Math.abs(boss.speed); boss.headY=maxY; }
+    if(boss.headY<minY){ boss.speed=-Math.abs(boss.speed); boss.headY=minY; }
+    boss.headX = W/2 + Math.sin(boss.headY*boss.frequency + levelTime*0.02) * boss.amplitude;
+    if(boss.headX<boss.radius) boss.headX=boss.radius;
+    if(boss.headX>W-boss.radius) boss.headX=W-boss.radius;
+
+    let last=boss.segments[0];
+    let dist=Math.hypot(boss.headX-last.x, boss.headY-last.y);
+    if(dist>8){
+        boss.segments.unshift({x:boss.headX, y:boss.headY, alive:true});
+        if(boss.segments.length>boss.segmentCount) boss.segments.pop();
+    }
+    // 碰撞玩家
+    if(boss.headY > player.y-100){
+        let d=Math.hypot(boss.headX-player.x, boss.headY-player.y);
+        if(d < boss.radius+player.radius){
+            if(player.dodgeRate && Math.random()<player.dodgeRate){
+                showDamage(player.x,player.y,'闪避!',false);
+            } else {
+                player.hp -= 100; screenShake=15;
+                showDamage(player.x,player.y,100,true);
+                if(player.hp<=0){
+                    if(player.hasShield){ player.hasShield=false; player.hp=100; showDamage(player.x,player.y,'护盾!',false); }
+                    else gameOver();
                 }
             }
         }
     }
-    draw() {
-        const t = this.theme;
-        for(let i=this.segments.length-1; i>=0; i--) {
-            let s = this.segments[i];
-            if(!s.alive) continue;
-            let r = this.radius*(1-(i/this.segmentCount)*0.6);
-            if(r<5) r=5;
-            let flicker = Math.sin(time*0.2+i*0.1)*0.1;
-            ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2);
-            ctx.fillStyle = t.color; ctx.globalAlpha = 0.6+flicker; ctx.fill();
-            ctx.globalAlpha = 1; ctx.strokeStyle = t.eyeColor; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function bossDraw(){
+    if(!boss) return;
+    const color = boss.isBoss ? '#ff4444' : '#00ff00';
+    const borderColor = boss.isBoss ? '#ff8888' : '#ffffff';
+    for(let i=boss.segments.length-1;i>=0;i--){
+        let s=boss.segments[i];
+        if(!s.alive) continue;
+        // 宝箱节点高亮
+        let isChest = chestNodes.includes(i);
+        let r = boss.radius*(1-(i/boss.segmentCount)*0.6);
+        if(r<5) r=5;
+        let flicker = Math.sin(levelTime*0.2+i*0.1)*0.1;
+        ctx.beginPath(); ctx.arc(s.x,s.y, isChest ? r+4 : r, 0, Math.PI*2);
+        if(isChest){
+            ctx.fillStyle='#ffcc00'; ctx.shadowBlur=15; ctx.shadowColor='#ffcc00';
+        } else {
+            ctx.fillStyle=color; ctx.globalAlpha=0.6+flicker;
         }
-        ctx.save(); ctx.translate(this.headX, this.headY);
-        for(let ti=0; ti<6; ti++) {
-            let angle = (ti/6)*Math.PI*2 + time*0.1;
-            let len = 40+Math.sin(time*0.3+ti)*10;
-            ctx.beginPath(); ctx.moveTo(0,0);
-            ctx.quadraticCurveTo(Math.cos(angle)*len*0.5+Math.sin(time*0.5)*10, Math.sin(angle)*len*0.5, Math.cos(angle)*len, Math.sin(angle)*len);
-            ctx.strokeStyle = t.color; ctx.lineWidth = 4; ctx.stroke();
-        }
-        ctx.beginPath(); ctx.arc(0,0,this.radius*1.5,0,Math.PI*2);
-        let g = ctx.createRadialGradient(-5,-5,5,0,0,this.radius*1.5);
-        g.addColorStop(0,'#fff'); g.addColorStop(0.5,t.color); g.addColorStop(1,'#000');
-        ctx.fillStyle = g; ctx.fill();
-        ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(-10,-5,6,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10,-5,6,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle='black'; ctx.beginPath(); ctx.arc(-10,-5,2,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10,-5,2,0,Math.PI*2); ctx.fill();
-        ctx.restore();
+        ctx.fill(); ctx.globalAlpha=1; ctx.shadowBlur=0;
+        ctx.strokeStyle=isChest?'#fff':borderColor; ctx.lineWidth=2; ctx.stroke();
+        if(isChest){ ctx.font='14px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🎁',s.x,s.y); }
     }
-    takeDamage(dmg) {
-        this.hp -= dmg;
-        showDamage(this.headX, this.headY-30, dmg, Math.random() < 0.2);
-        screenShake = Math.min(10, screenShake+1);
-        for(let k=0; k<3; k++) particles.push({ x:this.headX, y:this.headY, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, life:20, color:this.theme.color, size:3+Math.random()*5 });
-        document.getElementById('boss-hp-fill').style.width = (Math.max(0,this.hp/this.maxHp)*100)+'%';
-        if(this.hp <= 0) { nextLevel(); this.segments = []; }
+    // 头部
+    ctx.save(); ctx.translate(boss.headX, boss.headY);
+    for(let t=0;t<6;t++){
+        let angle=(t/6)*Math.PI*2+levelTime*0.1;
+        let len=40+Math.sin(levelTime*0.3+t)*10;
+        ctx.beginPath(); ctx.moveTo(0,0);
+        ctx.quadraticCurveTo(Math.cos(angle)*len*0.5+Math.sin(levelTime*0.5)*10, Math.sin(angle)*len*0.5, Math.cos(angle)*len, Math.sin(angle)*len);
+        ctx.strokeStyle=boss.isBoss?'#ff4444':'#00ff00'; ctx.lineWidth=4; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(0,0,boss.radius*1.5,0,Math.PI*2);
+    let g=ctx.createRadialGradient(-5,-5,5,0,0,boss.radius*1.5);
+    g.addColorStop(0,'#fff'); g.addColorStop(0.5,boss.isBoss?'#ff4444':'#00ff00'); g.addColorStop(1,'#000');
+    ctx.fillStyle=g; ctx.fill();
+    ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(-10,-5,6,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(10,-5,6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='black'; ctx.beginPath(); ctx.arc(-10,-5,2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(10,-5,2,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+}
+
+function bossTakeDamage(dmg){
+    let actualDmg = dmg;
+    // 武器特效：Boss双倍伤害
+    if(player.weapon?.effect?.bossDmg && boss.isBoss) actualDmg *= player.weapon.effect.bossDmg;
+    // 暴击
+    if(Math.random() < (player.critRate||0)) { actualDmg *= (player.critMult||2); showDamage(boss.headX,boss.headY-30,Math.floor(actualDmg),true); }
+    else showDamage(boss.headX,boss.headY-30,Math.floor(actualDmg),false);
+    boss.hp -= actualDmg;
+    screenShake = Math.min(10,screenShake+1);
+    for(let k=0;k<3;k++) particles.push({x:boss.headX,y:boss.headY,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,life:20,color:boss.isBoss?'#ff4444':'#00ff00',size:3+Math.random()*5});
+    document.getElementById('boss-hp-fill').style.width = (Math.max(0,boss.hp/boss.maxHp)*100)+'%';
+    // 中毒
+    if(player.hasPoison && !boss.poisoned) { boss.poisoned=3; }
+    // 灼烧
+    if(player.hasBurn && !boss.burning) { boss.burning=2; }
+    if(boss.hp<=0) {
+        battleGold += 50 + currentLevel*20;
+        nextLevel();
     }
 }
 
-class SingleBoss {
-    constructor(theme, config) {
-        this.x = W/2; this.y = -100; this.targetY = H*0.3;
-        this.maxHp = 8000+currentLevel*500; this.hp = this.maxHp;
-        this.radius = 50; this.speed = 1.5*(player.slowBoss||1)*0.8;
-        this.theme = theme; this.moveTimer = 0;
-    }
-    update() {
-        this.moveTimer++;
-        if(this.y < this.targetY) this.y += this.speed;
-        this.x = W/2+Math.sin(this.moveTimer*0.02)*150;
-        let d = Math.hypot(this.x-player.x, this.y-player.y);
-        if(d < this.radius+player.radius) {
-            if(player.dodgeRate && Math.random() < player.dodgeRate) {}
-            else { player.hp -= 50; screenShake=10; showDamage(player.x,player.y,50,true); if(player.hp<=0) gameOver(); }
-        }
-    }
-    draw() {
-        const t = this.theme;
-        ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
-        let g = ctx.createRadialGradient(this.x-10,this.y-10,10,this.x,this.y,this.radius);
-        g.addColorStop(0,'#fff'); g.addColorStop(0.5,t.color); g.addColorStop(1,'#000');
-        ctx.fillStyle=g; ctx.fill(); ctx.strokeStyle=t.eyeColor; ctx.lineWidth=3; ctx.stroke();
-        ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(this.x-15,this.y-10,8,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(this.x+15,this.y-10,8,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle='black'; ctx.beginPath(); ctx.arc(this.x-15,this.y-10,3,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(this.x+15,this.y-10,3,0,Math.PI*2); ctx.fill();
-    }
-    takeDamage(dmg) {
-        this.hp -= dmg; showDamage(this.x,this.y-40,dmg,Math.random()<0.2);
-        screenShake = Math.min(10,screenShake+1);
-        for(let k=0;k<5;k++) particles.push({ x:this.x, y:this.y, vx:(Math.random()-0.5)*12, vy:(Math.random()-0.5)*12, life:25, color:this.theme.color, size:4+Math.random()*6 });
-        document.getElementById('boss-hp-fill').style.width = (Math.max(0,this.hp/this.maxHp)*100)+'%';
-        if(this.hp<=0) { nextLevel(); this.y=9999; }
-    }
+function nextLevel(){
+    currentLevel++;
+    initLevel();
+    // 每关结束给3选1技能
+    showSkillSelect(`第 ${currentLevel} 关 - 选择强化`);
 }
 
-class DualDragonBoss {
-    constructor(theme, config) {
-        this.dragon1 = new SnakeBoss(theme, config);
-        this.dragon2 = new SnakeBoss(theme, config);
-        this.dragon2.headX = W*0.3; this.dragon2.amplitude = 120;
-        this.theme = theme; this.hp = this.dragon1.hp+this.dragon2.hp; this.maxHp = this.hp;
-    }
-    update() { this.dragon1.update(); this.dragon2.update(); }
-    draw() { this.dragon1.draw(); this.dragon2.draw(); }
-    takeDamage(dmg) {
-        this.dragon1.takeDamage(dmg); this.dragon2.takeDamage(dmg*0.5);
-        this.hp = Math.max(0, this.dragon1.hp+this.dragon2.hp);
-        document.getElementById('boss-hp-fill').style.width = (Math.max(0,this.hp/this.maxHp)*100)+'%';
-        if(this.dragon1.hp<=0 && this.dragon2.hp<=0) nextLevel();
-    }
+function gameOver(){
+    gameState='gameover';
+    showSettlement(false);
 }
 
-function createBossForMode(mode) {
-    const config = generateLevel(currentLevel);
-    switch(mode.type) {
-        case 'dragon': return new SnakeBoss(levelTheme, config);
-        case 'single': return new SingleBoss(levelTheme, config);
-        case 'dual': return new DualDragonBoss(levelTheme, config);
-        default: return new SnakeBoss(levelTheme, config);
+function updateProgress(){
+    const pct = Math.min(100, Math.floor(levelTime / levelDuration * 100));
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').innerText = `关卡 ${currentLevel} - 进度 ${pct}%`;
+    // 进度条满 = 通关
+    if(pct >= 100){
+        battleGold += 100 + currentLevel*30;
+        showSettlement(true);
     }
 }
 
 // ========== 视觉 ==========
-function drawPlayer() {
+function drawPlayer(){
     ctx.save(); ctx.translate(player.x, player.y);
-    ctx.rotate(time*0.05);
+    ctx.rotate(levelTime*0.05);
     ctx.beginPath(); ctx.arc(0,0,player.radius+5,0,Math.PI*1.5);
     ctx.strokeStyle='#00ffff'; ctx.lineWidth=4; ctx.shadowBlur=10; ctx.shadowColor='#00ffff'; ctx.stroke();
-    ctx.shadowBlur=0; ctx.rotate(-time*0.05);
-    let grad = ctx.createRadialGradient(0,-5,5,0,0,player.radius);
+    ctx.shadowBlur=0; ctx.rotate(-levelTime*0.05);
+    let grad=ctx.createRadialGradient(0,-5,5,0,0,player.radius);
     grad.addColorStop(0,'rgba(255,255,255,0.8)'); grad.addColorStop(0.4,'rgba(0,255,255,0.6)');
     grad.addColorStop(1,'rgba(0,100,255,0.1)');
     ctx.beginPath(); ctx.arc(0,0,player.radius,0,Math.PI*2);
@@ -476,63 +674,90 @@ function drawPlayer() {
     ctx.restore();
 }
 
-function showDamage(x, y, dmg, isCrit) {
-    damageNums.push({ x:x+(Math.random()-0.5)*20, y:y, val: dmg, life:40, color:isCrit?'#ffff00':'#ffffff', size:isCrit?24:16, vy:-2 });
+function showDamage(x,y,dmg,isCrit){
+    damageNums.push({x:x+(Math.random()-0.5)*20, y:y, val:isCrit?'💥'+dmg:dmg, life:40, color:isCrit?'#ffff00':'#ffffff', size:isCrit?24:16, vy:-2});
 }
 
-function restartGame() {
-    player.hp=1000; player.maxHp=1000; player.level=1; player.xp=0; player.damage=50;
-    player.fireRate=25; player.bulletCount=1; player.pierce=0;
-    player.hasAngel=false; player.angelCount=0;
-    player.hasExplode=false; player.hasFreeze=false; player.hasLightning=false;
-    player.hasPoison=false; player.hasBurn=false; player.hasSplit=false;
-    player.hasHoming=false; player.hasBounce=false; player.hasRegen=false;
-    player.hasShield=false; player.hasAOE=false;
-    player.dodgeRate=0; player.xpBonus=1; player.goldBonus=1;
-    player.critRate=0; player.critMult=2; player.slowBoss=1;
-    bullets=[]; angels=[]; particles=[]; damageNums=[];
-    score=0; time=0; currentLevel=1;
-    document.getElementById('game-over').style.display='none';
-    document.getElementById('boss-hp-fill').style.width='100%';
-    document.getElementById('xp-fill').style.width='0%';
-    gameState='playing'; boss=null;
-    generateLevel(1); updateWeaponBar();
+function updateWeaponBar(){
+    const bar = document.getElementById('weapon-bar');
+    bar.innerHTML = '';
+    const slots = [];
+    slots.push({icon:'💥', label:'基础'});
+    if(player.bulletCount>1) slots.push({icon:'🔱', label:`x${player.bulletCount}`});
+    if(player.pierce>0) slots.push({icon:'💎', label:`穿${player.pierce}`});
+    if(player.hasExplode) slots.push({icon:'💣', label:'爆'});
+    if(player.hasFreeze) slots.push({icon:'❄️', label:'冰'});
+    if(player.hasLightning) slots.push({icon:'⚡', label:'链'});
+    if(player.hasPoison) slots.push({icon:'🧪', label:'毒'});
+    if(player.hasBurn) slots.push({icon:'🔥', label:'燃'});
+    if(player.hasAOE) slots.push({icon:'🌀', label:'AOE'});
+    if(player.hasHoming) slots.push({icon:'🎯', label:'追踪'});
+    if(player.hasSplit) slots.push({icon:'✂️', label:'分裂'});
+    if(player.hasAngel) slots.push({icon:'👼', label:`x${player.angelCount}`});
+    if(player.hasShield) slots.push({icon:'🛡️', label:'盾'});
+    if(player.critRate>0) slots.push({icon:'⭐', label:`暴${Math.floor((player.critRate||0)*100)}%`});
+    for(let i=0; i<Math.min(6,slots.length); i++){
+        const s = document.createElement('div');
+        s.className = 'weapon-slot';
+        s.innerHTML = `<span class="icon">${slots[i].icon}</span><span style="font-size:8px">${slots[i].label}</span>`;
+        bar.appendChild(s);
+    }
+    document.getElementById('battle-gold').innerText = battleGold;
 }
 
-function gameOver() {
-    gameState='gameover'; document.getElementById('game-over').style.display='flex';
-    document.getElementById('final-score').innerText = score + ' (关卡 ' + currentLevel + ')';
-}
+// 输入
+let inputX = W/2;
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key]=true);
+window.addEventListener('keyup', e => keys[e.key]=false);
+window.addEventListener('mousemove', e => inputX=e.clientX);
+window.addEventListener('touchmove', e => {if(e.touches.length) inputX=e.touches[0].clientX;}, {passive:true});
+
+let screenShake = 0;
 
 // ========== 主循环 ==========
-function update() {
-    if(gameState !== 'playing') return;
-    time++;
+let running = false;
+function gameLoop(){
+    if(!running) { running=true; requestAnimationFrame(loop); }
+}
 
-    if(keys['ArrowLeft']||keys['a']||keys['A']) player.x -= 10;
-    if(keys['ArrowRight']||keys['d']||keys['D']) player.x += 10;
-    let distToInput = inputX - player.x;
-    if(Math.abs(distToInput) > 2) player.x += distToInput * 0.15;
+function loop(){
+    if(gameState==='playing'){
+        levelTime++;
+        // 生命恢复
+        if(player.hasRegen) player.hp = Math.min(player.maxHp, player.hp+Math.floor(player.maxHp*0.01));
+        // Boss中毒/灼烧
+        if(boss){
+            if(boss.poisoned>0){ boss.hp-=2; boss.poisoned--; }
+            if(boss.burning>0){ boss.hp-=3; boss.burning--; }
+            if(boss.hp<=0) bossTakeDamage(0);
+        }
+        update();
+        draw();
+        updateProgress();
+    }
+    requestAnimationFrame(loop);
+}
+
+function update(){
+    if(gameState!=='playing') return;
+    // 玩家移动
+    if(keys['ArrowLeft']||keys['a']||keys['A']) player.x-=10;
+    if(keys['ArrowRight']||keys['d']||keys['D']) player.x+=10;
+    let distToInput = inputX-player.x;
+    if(Math.abs(distToInput)>2) player.x += distToInput*0.15;
     player.x = Math.max(player.radius, Math.min(W-player.radius, player.x));
-
-    let secs = Math.floor(time/60);
-    document.getElementById('time').innerText = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`;
-    document.getElementById('score').innerText = score;
     document.getElementById('player-hp-fill').style.width = (Math.max(0,player.hp/player.maxHp)*100)+'%';
-    if(player.hp/player.maxHp < 0.3) document.getElementById('player-hp-fill').style.background = 'linear-gradient(90deg,#ff0000,#ff6600)';
+    if(player.hp/player.maxHp<0.3) document.getElementById('player-hp-fill').style.background='linear-gradient(90deg,#ff0000,#ff6600)';
 
-    // 生命恢复
-    if(player.hasRegen) player.hp = Math.min(player.maxHp, player.hp + Math.floor(player.maxHp*0.01));
-
-    if(!boss) { generateLevel(1); boss = createBossForMode(bossMode); }
-    boss.update();
+    if(boss) boss.update();
 
     // 射击 - 垂直向上
-    if(player.fireTimer > 0) player.fireTimer--;
+    if(player.fireTimer>0) player.fireTimer--;
     else {
         player.fireTimer = player.fireRate;
-        let spread = player.bulletCount > 1 ? 0.12 : 0;
-        for(let i=0; i<player.bulletCount; i++) {
+        let spread = player.bulletCount>1 ? 0.12 : 0;
+        for(let i=0; i<player.bulletCount; i++){
             let angle = -Math.PI/2 + (i-(player.bulletCount-1)/2)*spread;
             bullets.push({
                 x:player.x, y:player.y, vx:Math.cos(angle)*14, vy:Math.sin(angle)*14,
@@ -545,118 +770,101 @@ function update() {
     }
 
     // 天使
-    if(player.hasAngel && angels.length < player.angelCount) angels.push({ x:W/2, y:H/2, timer:0 });
+    if(player.hasAngel && angels.length<player.angelCount) angels.push({x:W/2,y:H/2,timer:0});
     angels.forEach(a => {
         a.timer++; a.x=W/2+Math.sin(a.timer*0.03)*150; a.y=H/3+Math.cos(a.timer*0.04)*100;
-        if(a.timer%20===0 && boss) {
-            let tx=boss.headX||boss.x||W/2, ty=boss.headY||boss.y||H/3;
-            bullets.push({ x:a.x, y:a.y, vx:(tx-a.x)*0.06, vy:(ty-a.y)*0.06,
-                dmg:player.damage*0.3, color:'#ffff00', pierce:0, life:10 });
+        if(a.timer%20===0 && boss){
+            let tx=boss.headX||W/2, ty=boss.headY||H/3;
+            bullets.push({x:a.x,y:a.y,vx:(tx-a.x)*0.06,vy:(ty-a.y)*0.06,dmg:player.damage*0.3,color:'#ffff00',pierce:0,life:10});
         }
     });
 
     // 子弹
-    for(let i=bullets.length-1; i>=0; i--) {
-        let b = bullets[i];
-        // 追踪
-        if(b.homing && boss) {
-            let tx=boss.headX||boss.x, ty=boss.headY||boss.y;
-            let targetAngle = Math.atan2(ty-b.y, tx-b.x);
-            let currentAngle = Math.atan2(b.vy, b.vx);
-            let diff = targetAngle - currentAngle;
-            while(diff > Math.PI) diff -= Math.PI*2;
-            while(diff < -Math.PI) diff += Math.PI*2;
-            currentAngle += diff * 0.1;
-            let speed = Math.hypot(b.vx, b.vy);
-            b.vx = Math.cos(currentAngle)*speed;
-            b.vy = Math.sin(currentAngle)*speed;
+    for(let i=bullets.length-1;i>=0;i--){
+        let b=bullets[i];
+        if(b.homing && boss){
+            let tx=boss.headX, ty=boss.headY;
+            let ta=Math.atan2(ty-b.y,tx-b.x), ca=Math.atan2(b.vy,b.vx);
+            let diff=ta-ca; while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
+            ca+=diff*0.1; let spd=Math.hypot(b.vx,b.vy); b.vx=Math.cos(ca)*spd; b.vy=Math.sin(ca)*spd;
         }
-        b.x += b.vx; b.y += b.vy;
-        particles.push({ x:b.x, y:b.y, vx:0, vy:0, life:5, color:b.color, size:2 });
-
-        // 弹射
-        if(b.bounce) {
-            if(b.x < 0 || b.x > W) { b.vx *= -1; b.x = Math.max(0, Math.min(W, b.x)); }
-            if(b.y < 0) { b.vy *= -1; b.y = 0; }
-        } else if(b.x<0||b.x>W||b.y<0||b.y>H) { bullets.splice(i,1); continue; }
+        b.x+=b.vx; b.y+=b.vy;
+        particles.push({x:b.x,y:b.y,vx:0,vy:0,life:5,color:b.color,size:2});
+        if(b.bounce){
+            if(b.x<0||b.x>W){b.vx*=-1;b.x=Math.max(0,Math.min(W,b.x));}
+            if(b.y<0){b.vy*=-1;b.y=0;}
+        } else if(b.x<0||b.x>W||b.y<0||b.y>H){bullets.splice(i,1);continue;}
 
         // 碰撞 - 蛇身体段消失机制!
-        if(boss) {
-            let hit = false;
-            if(boss.dragon1 && boss.dragon2) {
-                [boss.dragon1, boss.dragon2].forEach(dragon => {
-                    if(!hit) {
-                        let dHead = Math.hypot(b.x-dragon.headX, b.y-dragon.headY);
-                        if(dHead < dragon.radius*2) { dragon.takeDamage(b.dmg); gainXP(10); hit=true; return; }
-                        for(let s=0; s<dragon.segments.length; s+=4) {
-                            let seg = dragon.segments[s];
-                            if(!seg.alive) continue;
-                            let dSeg = Math.hypot(b.x-seg.x, b.y-seg.y);
-                            if(dSeg < dragon.radius) {
-                                dragon.takeDamage(b.dmg*0.5); gainXP(5);
-                                seg.alive = false; // 身体段消失!
-                                hit = true; break;
-                            }
-                        }
-                    }
-                });
-            } else if(boss.x !== undefined) {
-                let d = Math.hypot(b.x-boss.x, b.y-boss.y);
-                if(d < boss.radius*2) { boss.takeDamage(b.dmg); gainXP(10); hit=true; }
-            } else {
-                let dHead = Math.hypot(b.x-boss.headX, b.y-boss.headY);
-                if(dHead < boss.radius*2) { boss.takeDamage(b.dmg); gainXP(10); hit=true; }
-                if(!hit) {
-                    for(let s=0; s<boss.segments.length; s+=4) {
-                        let seg = boss.segments[s];
-                        if(!seg.alive) continue;
-                        let dSeg = Math.hypot(b.x-seg.x, b.y-seg.y);
-                        if(dSeg < boss.radius) {
-                            boss.takeDamage(b.dmg*0.5); gainXP(5);
-                            seg.alive = false; // 身体段消失!
-                            hit = true; break;
-                        }
+        if(boss){
+            let hit=false;
+            // 先检查宝箱节点
+            for(let ci=0; ci<chestNodes.length; ci++){
+                let pos = chestNodes[ci];
+                let seg = boss.segments[pos];
+                if(seg && seg.alive){
+                    let d = Math.hypot(b.x-seg.x, b.y-seg.y);
+                    if(d < boss.radius+8){
+                        // 宝箱被击破! 3选1技能
+                        seg.alive = false;
+                        chestNodes.splice(ci, 1);
+                        document.getElementById('chest-count').innerText = chestNodes.length;
+                        hit = true;
+                        bullets.splice(i,1);
+                        showSkillSelect('🎁 宝箱击破! 选择词条');
+                        return;
                     }
                 }
             }
-            if(hit) {
-                // 爆炸效果
-                if(b.explode) {
-                    for(let k=0;k<8;k++) particles.push({ x:b.x, y:b.y, vx:(Math.random()-0.5)*8, vy:(Math.random()-0.5)*8, life:15, color:'#ff6600', size:4 });
-                    boss.takeDamage(b.dmg*0.3);
+            // 检查头部
+            let dHead = Math.hypot(b.x-boss.headX, b.y-boss.headY);
+            if(dHead < boss.radius*2){ boss.takeDamage(b.dmg); hit=true; }
+            // 检查身体段 - 击中后消失
+            if(!hit){
+                for(let s=0; s<boss.segments.length; s+=4){
+                    let seg=boss.segments[s];
+                    if(!seg.alive) continue;
+                    let dSeg = Math.hypot(b.x-seg.x, b.y-seg.y);
+                    if(dSeg < boss.radius){
+                        boss.takeDamage(b.dmg*0.5);
+                        seg.alive = false; // 身体段消失!
+                        hit = true; break;
+                    }
                 }
-                // 冰冻
+            }
+            if(hit){
+                if(b.explode){ for(let k=0;k<8;k++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:15,color:'#ff6600',size:4}); boss.takeDamage(b.dmg*0.3); }
                 if(b.freeze && boss.speed) boss.speed *= 0.97;
                 b.pierce--;
-                if(b.pierce < 0) { bullets.splice(i,1); continue; }
+                if(b.pierce<0){bullets.splice(i,1);continue;}
             }
         }
     }
-
     // 粒子
-    for(let i=particles.length-1; i>=0; i--) { let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; if(p.life<=0) particles.splice(i,1); }
+    for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx;p.y+=p.vy;p.life--;if(p.life<=0)particles.splice(i,1);}
     // 数字
-    for(let i=damageNums.length-1; i>=0; i--) { let d=damageNums[i]; d.y+=d.vy; d.life--; if(d.life<=0) damageNums.splice(i,1); }
+    for(let i=damageNums.length-1;i>=0;i--){let d=damageNums[i];d.y+=d.vy;d.life--;if(d.life<=0)damageNums.splice(i,1);}
     if(screenShake>0) screenShake*=0.9; if(screenShake<0.5) screenShake=0;
 }
 
-function draw() {
+function draw(){
     ctx.clearRect(0,0,W,H);
     ctx.save();
     if(screenShake>0) ctx.translate((Math.random()-0.5)*screenShake*5, (Math.random()-0.5)*screenShake*5);
     ctx.strokeStyle='rgba(255,0,50,0.05)'; ctx.lineWidth=2;
-    for(let i=0; i<W; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
+    for(let i=0;i<W;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
     if(boss) boss.draw();
-    angels.forEach(a => { ctx.font='40px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('👼',a.x,a.y); ctx.beginPath(); ctx.arc(a.x,a.y,30,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fill(); });
+    angels.forEach(a=>{ctx.font='40px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('👼',a.x,a.y);ctx.beginPath();ctx.arc(a.x,a.y,30,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fill();});
     drawPlayer();
-    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x,b.y,4,0,Math.PI*2); ctx.fillStyle=b.color; ctx.shadowBlur=10; ctx.shadowColor=b.color; ctx.fill(); ctx.shadowBlur=0; });
-    damageNums.forEach(d => { ctx.fillStyle=d.color; ctx.font=`bold ${d.size}px Arial`; ctx.fillText(d.val, d.x, d.y); });
-    particles.forEach(p => { ctx.globalAlpha=p.life/20; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill(); ctx.globalAlpha=1; });
+    bullets.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,4,0,Math.PI*2);ctx.fillStyle=b.color;ctx.shadowBlur=10;ctx.shadowColor=b.color;ctx.fill();ctx.shadowBlur=0;});
+    damageNums.forEach(d=>{ctx.fillStyle=d.color;ctx.font=`bold ${d.size}px Arial`;ctx.fillText(d.val,d.x,d.y);});
+    particles.forEach(p=>{ctx.globalAlpha=p.life/20;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fillStyle=p.color;ctx.fill();ctx.globalAlpha=1;});
     ctx.restore();
 }
 
-function loop() { update(); draw(); requestAnimationFrame(loop); }
-loop();
+// ========== 初始化 ==========
+initMenu();
+checkOffline();
 </script>
 </body>
 </html>
