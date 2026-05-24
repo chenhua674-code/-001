@@ -522,6 +522,16 @@ function generateBoss(){
     document.getElementById('boss-name').innerText = boss.name;
 }
 
+function showLevelAnnounce(text){
+    // 简易屏幕公告
+    const el = document.getElementById('progress-text');
+    const orig = el.innerText;
+    el.innerText = text;
+    el.style.color = '#ffcc00';
+    el.style.fontSize = '16px';
+    setTimeout(()=>{ el.innerText=orig; el.style.color='#fff'; el.style.fontSize='11px'; }, 2000);
+}
+
 // 宝箱系统 - 稀有掉落，不是长在蛇身上
 let activeChest = null; // 当前活跃的宝箱 {x, y, hp, maxHp, radius, timer}
 
