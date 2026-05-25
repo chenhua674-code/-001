@@ -274,7 +274,7 @@ function initMenu(){
 function buyItem(type, cost){
     if(save.gold < cost) return alert('金币不足!');
     save.gold -= cost;
-    if(type==='sweep') { save.gold += 200; alert('扫荡完成! 获得 💰200'); }
+    if(type==='sweep') { const reward = Math.max(30, 50 + Math.floor(save.highestLevel * 10)); save.gold += reward; alert(`扫荡完成! 获得 💰${reward}`); }
     else if(type==='weaponbox'){
         const allW = ['basic','pill','syringe','dagger','satellite','tide_stone','med_swab','lab_mouth'];
         const available = allW.filter(w=>!save.weapons.includes(w));
@@ -513,6 +513,12 @@ function isSkillMaxed(id){ return (skills[id]||0) >= 3; }
 
 function getRandomSkills(count){
     let pool = ALL_SKILLS.filter(s => !isSkillMaxed(s.id));
+    if(pool.length === 0){
+        // 所有技能已满，返回金币奖励
+        const bonus = 200 + currentLevel * 50;
+        return [{id:'gold_bonus', name:'💰 技能已满!', desc:`所有词条已满，获得 💰${bonus}`, icon:'💰', rarity:'legendary', cat:'奖励',
+          levels:[{apply:()=>{battleGold+=bonus; updateWeaponBar();}, desc:`+${bonus} 金币`}]}];
+    }
     // 优先显示已有的技能（可以升级）
     let existing = pool.filter(s => getSkillLevel(s.id) > 0);
     let newOnes = pool.filter(s => getSkillLevel(s.id) === 0);
@@ -558,12 +564,13 @@ function showSkillSelect(reason){
 }
 function hideSkillSelect(){
     document.getElementById('skill-menu').classList.remove('active');
-    gameState = 'playing';
+    gameState='playing';
+    gameLoop();
 }
 
 // ========== 暂停 ==========
 function showPauseMenu(){ gameState='paused'; showScreen('pause-menu'); }
-function hidePauseMenu(){ document.getElementById('pause-menu').classList.remove('active'); gameState='playing'; }
+function hidePauseMenu(){ document.getElementById('pause-menu').classList.remove('active'); gameState='playing'; gameLoop(); }
 
 // ========== 结算 ==========
 function showSettlement(win){
@@ -849,13 +856,6 @@ function updateWeaponBar(){
     if(player.hasAngel) slots.push({icon:'👼', label:`x${player.angelCount}`});
     if(player.hasShield) slots.push({icon:'🛡️', label:'盾'});
     if(player.critRate>0) slots.push({icon:'⭐', label:`暴${Math.floor((player.critRate||0)*100)}%`});
-    // 显示技能等级
-    for(let id in skills){
-        if(skills[id]>0){
-            const sk = ALL_SKILLS.find(s=>s.id===id);
-            if(sk) slots.push({icon:sk.icon, label:`Lv.${skills[id]}`});
-        }
-    }
     for(let i=0; i<Math.min(8,slots.length); i++){
         const s = document.createElement('div');
         s.className = 'weapon-slot';
@@ -878,10 +878,12 @@ let screenShake = 0;
 // ========== 主循环 ==========
 let running = false;
 function gameLoop(){
-    if(!running) { running=true; requestAnimationFrame(loop); }
+    running = true;
+    loop();
 }
 
 function loop(){
+    if(gameState!=='playing') return;
     if(gameState==='playing'){
         levelTime++;
         // 生命恢复
@@ -894,7 +896,7 @@ function loop(){
         if(boss){
             if(boss.poisoned>0){ boss.hp-=boss.poisonDmg||2; boss.poisoned--; }
             if(boss.burning>0){ boss.hp-=boss.burnDmg||3; boss.burning--; }
-            if(boss.hp<=0) bossTakeDamage(1);
+            if(boss.hp<=0 && !boss.dead){ boss.dead=true; battleGold += 50 + currentLevel*20; nextLevel(); }
         }
         update();
         draw();
@@ -1005,7 +1007,7 @@ function update(){
                 for(let k=0;k<12;k++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10,life:15,color:'#ff6600',size:5}); 
                 boss.takeDamage(b.dmg*(player.explodeDmg||0.3)); 
             }
-            if(b.freeze && boss.speed) boss.speed *= (player.freezeSlow || 0.95);
+            if(b.freeze && boss.speed) boss.speed *= (player.freezeSlow || 0.8);
             hitChest = false; // 已命中头部
         }
 
