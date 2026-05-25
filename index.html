@@ -629,14 +629,14 @@ function initLevel(){
 function generateBoss(){
     const isBossLevel = currentLevel % 5 === 0;
     const bossHP = isBossLevel ? 15000 + currentLevel*2000 : 5000 + currentLevel*500;
-    const bossSpeed = (1.5 + currentLevel*0.02) * (player.slowBoss||1);
+    const bossSpeed = (1.0 + currentLevel*0.015) * (player.slowBoss||1); // 走位降速35%
     boss = {
         isBoss: isBossLevel,
         headX:W/2, headY:-100,
         hp:bossHP, maxHp:bossHP, speed:bossSpeed,
         radius: isBossLevel ? 30 : 25,
-        amplitude:180, frequency:0.03,
-        segments:[], segmentCount:120,
+        amplitude:160, frequency:0.02, // 频率降低，走位更从容
+        segments:[], segmentCount:100, // 从120改为100
         name: isBossLevel ? `🐉 邪龙Boss Lv.${currentLevel}` : `🐍 病毒Lv.${currentLevel}`,
     // 宝箱节点：追踪"距离头部第几段"而不是数组index（因为index会变）
     chestDistances: [], // 距离头部的段数偏移
@@ -667,8 +667,13 @@ function markChestSegments(){
 function initSnakeBody(){
     boss.segments = [];
     boss.chestDistances = [];
+    const segBaseHP = 100 + currentLevel * 20; // 每段基础HP随关卡增长
     for(let i=0; i<boss.segmentCount; i++){
-        boss.segments.push({x:W/2, y:-100-i*10, alive:true});
+        // HP算法：越靠近头部的段血量越高（头部保护机制）
+        // 第0段=1.5x血量，最后一段=1.0x血量
+        const hpMultiplier = 1 + (1 - i/boss.segmentCount) * 0.5;
+        const segHP = Math.floor(segBaseHP * hpMultiplier);
+        boss.segments.push({x:W/2, y:-100-i*18, alive:true, hp:segHP, maxHp:segHP}); // 间距从10改为18
     }
     // 每4-6段随机一个宝箱（距离头部的段数）
     let pos = 4 + Math.floor(Math.random()*3);
@@ -699,7 +704,12 @@ function bossUpdate(){
     if(boss.headY > H + 50){
         boss.headY = -100;
         boss.segments = [];
-        for(let i=0;i<boss.segmentCount;i++) boss.segments.push({x:W/2, y:-100-i*10, alive:true});
+        const segBaseHP = 100 + currentLevel * 20;
+        for(let i=0;i<boss.segmentCount;i++){
+            const hpMultiplier = 1 + (1 - i/boss.segmentCount) * 0.5;
+            const segHP = Math.floor(segBaseHP * hpMultiplier);
+            boss.segments.push({x:W/2, y:-100-i*18, alive:true, hp:segHP, maxHp:segHP});
+        }
     }
 
     let last=boss.segments[0];
@@ -749,10 +759,23 @@ function bossDraw(){
             let pulse = 0.5 + Math.sin(levelTime*0.3)*0.3;
             ctx.fillStyle=`rgba(255,200,0,${pulse})`; ctx.shadowBlur=15; ctx.shadowColor='#ffcc00';
         } else {
-            ctx.fillStyle=color; ctx.globalAlpha=0.6+flicker;
+            // 血量可视化：满血=绿色，低血=红色
+            const hpRatio = s.maxHp > 0 ? s.hp / s.maxHp : 0;
+            const hpColor = hpRatio > 0.5 ? `rgba(0,255,${Math.floor(hpRatio*200+55)},${0.6+flicker})` : 
+                                          `rgba(${Math.floor(255*(1-hpRatio)+255*hpRatio)},${Math.floor(255*hpRatio)},0,${0.6+flicker})`;
+            ctx.fillStyle=hpColor; ctx.globalAlpha=0.6+flicker;
         }
         ctx.fill(); ctx.globalAlpha=1; ctx.shadowBlur=0;
         ctx.strokeStyle=isChest?'#fff':borderColor; ctx.lineWidth=2; ctx.stroke();
+        // 血量条（非宝箱段显示）
+        if(!isChest && s.hp < s.maxHp && r >= 8){
+            const barW = r*2, barH = 3;
+            const barX = s.x - barW/2, barY = s.y - r - 6;
+            ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(barX-1, barY-1, barW+2, barH+2);
+            const hpRatio = s.hp / s.maxHp;
+            ctx.fillStyle = hpRatio > 0.5 ? '#00ff88' : hpRatio > 0.25 ? '#ffcc00' : '#ff3333';
+            ctx.fillRect(barX, barY, barW*hpRatio, barH);
+        }
         if(isChest){ 
             ctx.font='16px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; 
             ctx.fillText('🎁',s.x,s.y); 
@@ -1018,8 +1041,14 @@ function update(){
                 if(!seg || !seg.alive) continue;
                 let dSeg = Math.hypot(b.x-seg.x, b.y-seg.y);
                 if(dSeg < boss.radius){
-                    boss.takeDamage(b.dmg*0.5);
-                    seg.alive = false;
+                    let segDmg = b.dmg * 0.5;
+                    seg.hp -= segDmg;
+                    boss.takeDamage(segDmg);
+                    showDamage(seg.x, seg.y, Math.floor(segDmg), false);
+                    if(seg.hp <= 0){
+                        seg.alive = false;
+                        for(let k=0;k<5;k++) particles.push({x:seg.x,y:seg.y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,life:15,color:'#00ff88',size:3});
+                    }
                     hitHead = true; break;
                 }
             }
