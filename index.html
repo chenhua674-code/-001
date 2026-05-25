@@ -640,8 +640,13 @@ initSnakeBody();
 // 标记宝箱在蛇身体上的位置
 markChestSegments();
 
+document.getElementById('boss-hp-container').style.display='block';
+document.getElementById('boss-name').innerText = boss.name;
+}
+
+// 每帧重新标记宝箱段位置（根据距离头部的段数计算数组index）
 function markChestSegments(){
-    // 根据 chestDistances 重新计算当前哪些数组index是宝箱段
+    if(!boss) return;
     boss.chestSegments = [];
     for(let d of boss.chestDistances){
         let idx = d % boss.segments.length;
@@ -649,10 +654,6 @@ function markChestSegments(){
             boss.chestSegments.push(idx);
         }
     }
-}
-
-document.getElementById('boss-hp-container').style.display='block';
-document.getElementById('boss-name').innerText = boss.name;
 }
 
 // 初始化蛇身体并设置宝箱距离
