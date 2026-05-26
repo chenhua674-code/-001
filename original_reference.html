@@ -96,6 +96,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+initGame(); // W/H 有值后初始化游戏
 
 // ==================== 技能池 ====================
 const SKILLS = [
@@ -123,9 +124,10 @@ let pendingXpOrbs = [];
 let xpOrbs = [];
 let isPaused = false;
 let regenTimer = 0;
+let gameInitialized = false;
 
 const player = {
-    x: W / 2, y: H - 80,
+    x: 0, y: 0,
     radius: 30,
     hp: 1000, maxHp: 1000,
     damage: 50,
@@ -150,8 +152,21 @@ let damageNums = [];
 let explosions = [];
 
 // 输入控制
-let inputX = W / 2;
+let inputX = 0;
 const keys = {};
+
+function initGame() {
+    if (gameInitialized) return;
+    gameInitialized = true;
+    
+    player.x = W / 2;
+    player.y = H - 80;
+    inputX = W / 2;
+    
+    updateXpBar();
+    updateHpBar();
+}
+
 window.addEventListener('keydown', e => keys[e.key] = true);
 window.addEventListener('keyup', e => keys[e.key] = false);
 window.addEventListener('mousemove', e => inputX = e.clientX);
@@ -495,12 +510,17 @@ class SnakeBoss {
     }
 
     takeDamage(dmg) {
+        if (this.hp <= 0) return; // 已死亡不再受伤
+        
         let isCrit = Math.random() < player.critRate;
         if (isCrit) dmg = Math.floor(dmg * player.critMult);
         
         this.hp -= dmg;
         showDamage(this.headX, this.headY - 30, dmg, isCrit);
         screenShake = Math.min(10, screenShake + 1);
+        
+        // 受伤也掉落经验球（2-3个）
+        spawnXpOrbs(this.headX, this.headY, 2 + Math.floor(Math.random() * 2));
         
         // 吸血
         if (player.lifesteal > 0) {
@@ -513,11 +533,9 @@ class SnakeBoss {
             this.slowTimer = player.slowDuration;
         }
         
-        // 爆炸
+        // 爆炸效果（纯视觉，不额外扣血）
         if (player.explosive) {
             createExplosion(this.headX, this.headY, player.explosiveRadius);
-            // 溅射伤害
-            this.hp -= Math.floor(dmg * 0.3);
         }
         
         for(let k=0; k<3; k++) {
