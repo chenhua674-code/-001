@@ -74,7 +74,7 @@ let W, H;
 function resize() {
     W = C.width = window.innerWidth;
     H = C.height = window.innerHeight;
-    if (G && G.p) G.p.y = H - 80;
+    try { if (G.p) G.p.y = H - 80; } catch(e) {}
 }
 window.addEventListener('resize', resize);
 resize();
