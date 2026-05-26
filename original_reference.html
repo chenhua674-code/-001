@@ -96,7 +96,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-initGame(); // W/H 有值后初始化游戏
 
 // ==================== 技能池 ====================
 const SKILLS = [
@@ -115,6 +114,7 @@ const SKILLS = [
 ];
 
 // ==================== 游戏状态 ====================
+let gameInitialized = false;
 let gameState = 'playing';
 let score = 0;
 let time = 0;
@@ -124,7 +124,6 @@ let pendingXpOrbs = [];
 let xpOrbs = [];
 let isPaused = false;
 let regenTimer = 0;
-let gameInitialized = false;
 
 const player = {
     x: 0, y: 0,
@@ -142,6 +141,7 @@ const player = {
     explosive: false, explosiveRadius: 0,
     slowAmount: 0, slowDuration: 0,
     skills: {}, // { skillId: level }
+    invincible: 0, // 无敌时间（帧）
 };
 
 let bullets = [];
@@ -158,11 +158,9 @@ const keys = {};
 function initGame() {
     if (gameInitialized) return;
     gameInitialized = true;
-    
     player.x = W / 2;
     player.y = H - 80;
     inputX = W / 2;
-    
     updateXpBar();
     updateHpBar();
 }
@@ -435,23 +433,35 @@ class SnakeBoss {
         }
         
         this.headY += spd;
+        
+        // Boss到底部后返回顶部，持续战斗
+        if (this.headY > H + 50) {
+            this.headY = -50;
+            this.segments = [];
+            for(let i=0; i<this.segmentCount; i++) {
+                this.segments.push({ x: W/2, y: -50 - i * 10 });
+            }
+        }
+        
         this.headX = W/2 + Math.sin(this.headY * this.frequency + time * 0.02) * this.amplitude;
         
         if(this.headX < this.radius) this.headX = this.radius;
         if(this.headX > W - this.radius) this.headX = W - this.radius;
 
         let last = this.segments[0];
+        if (!last) return; // Boss死亡后segments为空，跳过更新
         let d = Math.hypot(this.headX - last.x, this.headY - last.y);
         if(d > 8) {
             this.segments.unshift({ x: this.headX, y: this.headY });
             if(this.segments.length > this.segmentCount) this.segments.pop();
         }
         
-        // 碰撞
+        // 碰撞（加无敌时间防止连续伤害）
         if(this.headY > player.y - 50) {
              let dd = Math.hypot(this.headX - player.x, this.headY - player.y);
-             if (dd < this.radius + player.radius) {
+             if (dd < this.radius + player.radius && player.invincible <= 0) {
                  player.hp -= 100;
+                 player.invincible = 60; // 1秒无敌
                  screenShake = 15;
                  showDamage(player.x, player.y, 100, true);
                  updateHpBar();
@@ -583,6 +593,7 @@ function restartGame() {
     player.slowAmount = 0; player.slowDuration = 0;
     player.skills = {};
     player.fireTimer = 0;
+    player.invincible = 0;
     
     boss = new SnakeBoss();
     bullets = []; angels = []; particles = []; damageNums = []; xpOrbs = []; explosions = [];
@@ -618,6 +629,9 @@ function update() {
     }
     
     player.x = Math.max(player.radius, Math.min(W - player.radius, player.x));
+    
+    // 无敌倒计时
+    if (player.invincible > 0) player.invincible--;
     
     // 生命回复
     if (player.regenPerSec > 0) {
@@ -766,6 +780,7 @@ function loop() {
     draw();
     requestAnimationFrame(loop);
 }
+initGame(); // 所有变量已声明，W/H 已有值
 loop();
 </script>
 </body>
