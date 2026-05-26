@@ -133,10 +133,10 @@ const SKILLS = [
     { name: '天使助战', icon: '👼', desc: '召唤天使自动攻击', effect: () => { player.hasAngel = true; player.angelCount++; }},
     { name: 'HP恢复', icon: '❤️', desc: '回复 500 HP', effect: () => { player.hp = Math.min(player.maxHp, player.hp + 500); }},
     { name: '最大HP提升', icon: '💖', desc: '最大HP +300', effect: () => { player.maxHp += 300; player.hp = Math.min(player.maxHp, player.hp + 300); }},
+    { name: '范围扩大', icon: '🌟', desc: '攻击范围增大', effect: () => { player.radius += 5; }},
     { name: '伤害+50', icon: '🗡️', desc: '攻击力 +50', effect: () => { player.damage += 50; }},
-    { name: '子弹变大', icon: '💎', desc: '子弹更大更容易命中', effect: () => { player.bulletSize += 2; }},
+    { name: '子弹变大', icon: '💎', desc: '子弹更容易命中', effect: () => { player.bulletSize = (player.bulletSize || 4) + 2; }},
     { name: '暴击率提升', icon: '💥', desc: '20%概率双倍伤害', effect: () => { player.critRate = (player.critRate || 0) + 0.2; }},
-    { name: '移速提升', icon: '🏃', desc: '移动速度 +30%', effect: () => { /* handled in movement */ }},
 ];
 
 // ==================== 经验球 ====================
