@@ -2,651 +2,489 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-<title>鬼新娘 - 技能成长版</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,maximum-scale=1.0">
+<title>鬼新娘 - 弹射打龙</title>
 <style>
-body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
-canvas { display: block; background: #050510; }
-#ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-#hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; color: white; font-size: 18px; font-weight: bold; text-shadow: 0 2px 4px black; }
-#boss-hp-container { position: absolute; top: 45px; left: 5%; width: 90%; height: 20px; }
-#boss-name { text-align: center; color: #ff3333; font-size: 16px; margin-bottom: 2px; text-shadow: 0 0 5px red; }
-#boss-hp-bg { width: 100%; height: 12px; background: #333; border: 2px solid #555; border-radius: 6px; overflow: hidden; }
-#boss-hp-fill { height: 100%; background: linear-gradient(90deg, #ff0000, #ff6600); width: 100%; transition: width 0.1s; }
-
-#skill-menu { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); pointer-events: auto; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-.skill-card { width: 85%; max-width: 400px; background: linear-gradient(135deg, #222, #111); border: 2px solid #444; color: white; padding: 15px; margin: 8px 0; border-radius: 12px; display: flex; align-items: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-.skill-card:active { transform: scale(0.98); }
-.skill-icon { font-size: 32px; margin-right: 15px; }
-.skill-info h3 { margin: 0; color: #00ffff; font-size: 18px; }
-.skill-info p { margin: 4px 0 0; color: #aaa; font-size: 14px; }
-
-#xp-bar { position: absolute; bottom: 15px; left: 5%; width: 90%; }
-#xp-bg { width: 100%; height: 10px; background: #222; border: 1px solid #444; border-radius: 5px; overflow: hidden; }
-#xp-fill { height: 100%; background: linear-gradient(90deg, #44aaff, #00ff88); width: 0%; transition: width 0.2s; }
-#xp-label { text-align: center; color: #44aaff; font-size: 12px; margin-bottom: 2px; }
-
-#hp-bar { position: absolute; bottom: 35px; left: 5%; width: 90%; }
-#hp-bg { width: 100%; height: 10px; background: #222; border: 1px solid #444; border-radius: 5px; overflow: hidden; }
-#hp-fill { height: 100%; background: linear-gradient(90deg, #ff3333, #ff6644); width: 100%; transition: width 0.1s; }
-#hp-label { text-align: center; color: #fff; font-size: 12px; margin-bottom: 2px; }
-
-#game-over { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); pointer-events: auto; flex-direction: column; justify-content: center; align-items: center; color: white; }
-#restart { padding: 15px 40px; background: #ff3333; border: none; color: white; font-size: 20px; border-radius: 8px; margin-top: 20px; cursor: pointer; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'PingFang SC','Microsoft YaHei',sans-serif;touch-action:none}
+canvas{display:block}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+#hud{display:flex;justify-content:space-between;padding:8px 12px;color:#fff;font-size:14px;text-shadow:0 2px 4px #000}
+#boss-area{position:absolute;top:30px;left:0;width:100%;text-align:center;pointer-events:none}
+#boss-name{color:#ff5555;font-size:14px;font-weight:bold;text-shadow:0 0 5px red}
+#boss-hp-bg{width:80%;height:10px;background:#333;border:1px solid #555;border-radius:5px;margin:2px auto;overflow:hidden}
+#boss-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#f00,#f80);transition:width .1s}
+#player-hp-area{position:absolute;bottom:10px;left:10%;width:80%;height:12px;background:#222;border:1px solid #444;border-radius:6px;overflow:hidden}
+#player-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#0f8,#0a5);transition:width .1s}
+#player-hp-text{position:absolute;top:0;width:100%;text-align:center;color:#fff;font-size:10px;line-height:12px}
+#xp-area{position:absolute;bottom:26px;left:10%;width:80%;height:6px;background:#222;border-radius:3px;overflow:hidden}
+#xp-fill{height:100%;width:0%;background:#0ff;transition:width .1s}
+#buff-bar{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;gap:4px}
+.buff-item{width:22px;height:22px;background:rgba(0,0,0,.7);border:1px solid #666;border-radius:3px;text-align:center;line-height:22px;font-size:11px}
+#skill-menu{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);pointer-events:auto;backdrop-filter:blur(5px)}
+#skill-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:400px;text-align:center}
+#skill-content h2{color:#0f8;text-shadow:0 0 10px #0f8;margin-bottom:15px}
+.skill-card{background:linear-gradient(135deg,#222,#111);border:2px solid #444;color:#fff;padding:12px;margin:8px 0;border-radius:10px;display:flex;align-items:center;cursor:pointer;text-align:left}
+.skill-card:active{transform:scale(.98)}
+.s-icon{font-size:28px;margin-right:12px;flex-shrink:0}
+.s-name{color:#0ff;font-weight:bold;font-size:16px}
+.s-desc{color:#aaa;font-size:12px;margin-top:2px}
+#game-over{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#000;pointer-events:auto;flex-direction:column;justify-content:center;align-items:center;color:#fff}
+#game-over h1{color:#f33;font-size:36px;margin-bottom:10px}
+#restart-btn{padding:12px 30px;background:#f33;border:none;color:#fff;font-size:18px;border-radius:6px;cursor:pointer}
+#wave-msg{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;font-weight:bold;text-shadow:0 0 10px #0ff;opacity:0;pointer-events:none;transition:opacity .5s}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+<canvas id="c"></canvas>
 <div id="ui">
-    <div id="hud">
-        <span>🏆 分数: <span id="score">0</span></span>
-        <span>⏱️ <span id="time">00:00</span></span>
-    </div>
-    
-    <div id="boss-hp-container">
-        <div id="boss-name">🐍 变异病毒长龙</div>
-        <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
-    </div>
+  <div id="hud">
+    <span>💎 <span id="score">0</span></span>
+    <span>⏱️ <span id="time">00:00</span></span>
+  </div>
+  <div id="boss-area">
+    <div id="boss-name">👰 鬼新娘长龙</div>
+    <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
+  </div>
+  <div id="xp-area"><div id="xp-fill"></div></div>
+  <div id="player-hp-area"><div id="player-hp-fill"></div><div id="player-hp-text">1000/1000</div></div>
+  <div id="buff-bar"></div>
+  <div id="wave-msg"></div>
+</div>
 
-    <div id="skill-menu">
-        <h2 style="color: #00ff88; text-shadow: 0 0 10px #00ff88; margin-bottom: 20px;">⬆️ 升级! 选择强化</h2>
-        <div id="skills-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
-    </div>
+<div id="skill-menu">
+  <div id="skill-content">
+    <h2>⬆️ 升级! 选择强化</h2>
+    <div id="skills"></div>
+  </div>
+</div>
 
-    <div id="xp-bar">
-        <div id="xp-label">经验 0/100</div>
-        <div id="xp-bg"><div id="xp-fill"></div></div>
-    </div>
-
-    <div id="hp-bar">
-        <div id="hp-label">HP 1000/1000</div>
-        <div id="hp-bg"><div id="hp-fill"></div></div>
-    </div>
-
-    <div id="game-over">
-        <h1 style="color: #ff3333; font-size: 40px; text-shadow: 0 0 10px red;">💀 防线崩溃</h1>
-        <p style="font-size: 20px;">最终分数: <span id="final-score" style="color: #00ff88">0</span></p>
-        <button id="restart" onclick="restartGame()">不服再来</button>
-    </div>
+<div id="game-over">
+  <h1>💀 阵亡</h1>
+  <p>分数: <span id="final-score">0</span></p>
+  <p id="restart-btn">再来一把</p>
 </div>
 
 <script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+'use strict';
+const C = document.getElementById('c');
+const X = C.getContext('2d');
 let W, H;
 
 function resize() {
-    W = window.innerWidth;
-    H = window.innerHeight;
-    canvas.width = W;
-    canvas.height = H;
+    W = C.width = window.innerWidth;
+    H = C.height = window.innerHeight;
+    if (G && G.p) G.p.y = H - 80;
 }
 window.addEventListener('resize', resize);
 resize();
 
-let gameState = 'playing';
-let score = 0;
-let time = 0;
-let screenShake = 0;
-
-const player = {
-    x: W / 2,
-    y: H - 80,
-    radius: 30,
-    hp: 1000, maxHp: 1000,
-    damage: 50,
-    fireRate: 25, fireTimer: 0,
-    level: 1, xp: 0, xpToNext: 100,
-    bulletCount: 1, pierce: 0,
-    hasAngel: false, angelCount: 0,
-    bulletSpeed: 14,
-    bulletSize: 4,
-    critRate: 0,
-    invincible: 0,
-    skills: []
+// 游戏状态
+let G = {
+    state: 'play', // play, skill, dead
+    time: 0, frame: 0, score: 0,
+    shake: 0, wave: 0,
+    bullets: [], particles: [], nums: [],
+    dragon: null, p: null
 };
 
-let bullets = [];
-let boss = null;
-let angels = [];
-let particles = [];
-let damageNums = [];
-let xpOrbs = [];
+// 输入
+let MX = W / 2;
+C.addEventListener('mousemove', e => MX = e.clientX);
+C.addEventListener('touchmove', e => { if(e.touches[0]) MX = e.touches[0].clientX; }, {passive:true});
 
-// 输入控制
-let inputX = W / 2;
-const keys = {};
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key] = false);
-window.addEventListener('mousemove', e => inputX = e.clientX);
-window.addEventListener('touchmove', e => {
-    if(e.touches.length > 0) inputX = e.touches[0].clientX;
-}, {passive: true});
-
-// ==================== 12个原版技能 ====================
-const SKILLS = [
-    { name: '多发弹', icon: '🔥', desc: '同时发射3发子弹', effect: () => { player.bulletCount = Math.min(player.bulletCount + 2, 9); }},
-    { name: '伤害翻倍', icon: '⚔️', desc: '攻击力 ×2', effect: () => { player.damage *= 2; }},
-    { name: '子弹加速', icon: '💨', desc: '子弹速度 +50%', effect: () => { player.bulletSpeed *= 1.5; }},
-    { name: '射速翻倍', icon: '⚡', desc: '攻击频率 ×2', effect: () => { player.fireRate = Math.max(3, Math.floor(player.fireRate / 2)); }},
-    { name: '穿透弹', icon: '🎯', desc: '穿透 +2', effect: () => { player.pierce += 2; }},
-    { name: '天使助战', icon: '👼', desc: '召唤天使自动攻击', effect: () => { player.hasAngel = true; player.angelCount++; }},
-    { name: 'HP恢复', icon: '❤️', desc: '回复 500 HP', effect: () => { player.hp = Math.min(player.maxHp, player.hp + 500); }},
-    { name: '最大HP提升', icon: '💖', desc: '最大HP +300', effect: () => { player.maxHp += 300; player.hp = Math.min(player.maxHp, player.hp + 300); }},
-    { name: '范围扩大', icon: '🌟', desc: '攻击范围增大', effect: () => { player.radius += 5; }},
-    { name: '伤害+50', icon: '🗡️', desc: '攻击力 +50', effect: () => { player.damage += 50; }},
-    { name: '子弹变大', icon: '💎', desc: '子弹更容易命中', effect: () => { player.bulletSize = (player.bulletSize || 4) + 2; }},
-    { name: '暴击率提升', icon: '💥', desc: '20%概率双倍伤害', effect: () => { player.critRate = (player.critRate || 0) + 0.2; }},
-];
-
-// ==================== 经验球 ====================
-function spawnXpOrb(x, y, value) {
-    xpOrbs.push({ x, y, value, life: 300, attracted: false });
-}
-
-function updateXpOrbs() {
-    for (let i = xpOrbs.length - 1; i >= 0; i--) {
-        const orb = xpOrbs[i];
-        orb.life--;
-        if (orb.life <= 0) { xpOrbs.splice(i, 1); continue; }
-        
-        const d = Math.hypot(orb.x - player.x, orb.y - player.y);
-        if (d < 150 || orb.attracted) {
-            orb.attracted = true;
-            const angle = Math.atan2(player.y - orb.y, player.x - orb.x);
-            orb.x += Math.cos(angle) * 6;
-            orb.y += Math.sin(angle) * 6;
-            
-            if (d < 20) {
-                addXp(orb.value);
-                xpOrbs.splice(i, 1);
-            }
-        }
-    }
-}
-
-function drawXpOrbs() {
-    for (const orb of xpOrbs) {
-        const alpha = orb.life < 60 ? orb.life / 60 : 1;
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(orb.x, orb.y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#00ff88';
-        ctx.shadowColor = '#00ff88';
-        ctx.shadowBlur = 8;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(orb.x, orb.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.globalAlpha = 1;
-    }
-}
-
-function addXp(amount) {
-    player.xp += amount;
-    while (player.xp >= player.xpToNext) {
-        player.xp -= player.xpToNext;
-        player.level++;
-        player.xpToNext = Math.floor(player.xpToNext * 1.4);
-        showLevelUp();
-    }
-    updateXpBar();
-}
-
-function updateXpBar() {
-    const pct = (player.xp / player.xpToNext) * 100;
-    document.getElementById('xp-fill').style.width = pct + '%';
-    document.getElementById('xp-label').textContent = `经验 ${player.xp}/${player.xpToNext}`;
-}
-
-function updateHpBar() {
-    const pct = (player.hp / player.maxHp) * 100;
-    document.getElementById('hp-fill').style.width = pct + '%';
-    document.getElementById('hp-label').textContent = `HP ${Math.floor(player.hp)}/${player.maxHp}`;
-}
-
-function showLevelUp() {
-    gameState = 'skill';
-    const menu = document.getElementById('skill-menu');
-    const container = document.getElementById('skills-container');
-    container.innerHTML = '';
-    
-    // 随机3个不重复技能
-    let choices = [...SKILLS].sort(() => Math.random() - 0.5).slice(0, 3);
-    
-    choices.forEach(skill => {
-        const card = document.createElement('div');
-        card.className = 'skill-card';
-        card.innerHTML = `<span class="skill-icon">${skill.icon}</span>
-            <div class="skill-info"><h3>${skill.name}</h3><p>${skill.desc}</p></div>`;
-        card.addEventListener('click', () => {
-            skill.effect();
-            if (player.skills.indexOf(skill.name) === -1) {
-                player.skills.push(skill.name);
-            }
-            menu.style.display = 'none';
-            gameState = 'playing';
-        });
-        container.appendChild(card);
-    });
-    
-    menu.style.display = 'flex';
-}
-
-// ==================== 玩家绘制 ====================
-function drawPlayer() {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    
-    // 旋转护盾
-    ctx.rotate(time * 0.05);
-    ctx.beginPath();
-    ctx.arc(0, 0, player.radius + 5, 0, Math.PI * 1.5);
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth = 4;
-    ctx.shadowBlur = 10; ctx.shadowColor = '#00ffff';
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.rotate(-time * 0.05);
-
-    // 核心底座
-    let grad = ctx.createRadialGradient(0, -5, 5, 0, 0, player.radius);
-    grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-    grad.addColorStop(0.4, 'rgba(0, 255, 255, 0.6)');
-    grad.addColorStop(1, 'rgba(0, 100, 255, 0.1)');
-    ctx.beginPath(); ctx.arc(0, 0, player.radius, 0, Math.PI*2);
-    ctx.fillStyle = grad; ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
-    
-    // 核心瞳孔
-    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2);
-    ctx.fillStyle = '#fff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; ctx.fill();
-    
-    ctx.restore();
-}
-
-// ==================== Boss（带格子机制）====================
-class SnakeBoss {
+// 玩家类
+class Player {
     constructor() {
-        this.segments = [];
-        this.segmentCount = 100;
-        this.segHp = 50; // 每段格子血量
-        this.hp = this.segHp * this.segmentCount;
-        this.maxHp = this.hp;
-        this.headX = W/2; this.headY = -100;
-        this.speed = 1.5;
-        this.radius = 25;
-        this.amplitude = 180;
-        this.frequency = 0.03;
-        this.collisionCooldown = 0;
-        this.retreatAmount = 0;
-        this.segSpacing = this.radius * 1.4;
-        
-        for(let i=0; i<this.segmentCount; i++) {
-            this.segments.push({ x: W/2, y: -100 - i * this.segSpacing, hp: this.segHp });
-        }
+        this.x = W / 2; this.y = H - 80;
+        this.r = 20;
+        this.hp = 1000; this.maxHp = 1000;
+        this.dmg = 40;
+        this.rate = 30; this.timer = 0;
+        this.xp = 0; this.xpNext = 80; this.lv = 1;
+        this.pierce = 0; this.bounce = 1; this.count = 1; this.speed = 1;
+        this.crit = 0.05; this.critDmg = 1.5;
+        this.buffs = {slow:false, burn:false, poison:false};
     }
-
     update() {
-        if (this.retreatAmount > 0) {
-            this.retreatAmount *= 0.92;
-            if (this.retreatAmount < 0.5) this.retreatAmount = 0;
-        }
-        if (this.collisionCooldown > 0) this.collisionCooldown--;
+        // 移动跟随
+        let dx = MX - this.x;
+        this.x += dx * 0.12;
+        this.x = Math.max(this.r, Math.min(W - this.r, this.x));
         
-        this.headY += this.speed;
-        this.headX = W/2 + Math.sin(this.headY * this.frequency + time * 0.02) * this.amplitude;
-        
-        if(this.headX < this.radius) this.headX = this.radius;
-        if(this.headX > W - this.radius) this.headX = W - this.radius;
-        
-        // 碰撞
-        if(this.headY > player.y - 50 && this.collisionCooldown <= 0) {
-             let dd = Math.hypot(this.headX - player.x, this.headY - player.y);
-             if (dd < this.radius + player.radius) {
-                 player.hp -= 100;
-                 player.invincible = 60;
-                 this.collisionCooldown = 60;
-                 screenShake = 15;
-                 showDamage(player.x, player.y, 100, true);
-                 updateHpBar();
-                 if (player.hp <= 0) gameOver();
-             }
-        }
-        if (player.invincible > 0) player.invincible--;
-
-        // 更新每段位置
-        const basePhase = 0;
-        const phaseLag = this.frequency * this.segSpacing * 0.5;
-        for(let k = 0; k < this.segments.length; k++) {
-            let seg = this.segments[k];
-            seg.y = this.headY - k * this.segSpacing - this.retreatAmount * Math.exp(-k * 0.05);
-            seg.x = W/2 + Math.sin(seg.y * this.frequency + basePhase + k * phaseLag) * this.amplitude;
+        // 射击
+        if (this.timer-- <= 0) {
+            this.timer = this.rate;
+            this.fire();
         }
     }
-
+    fire() {
+        let angle = -90;
+        let spread = this.count > 1 ? 0.2 : 0;
+        for (let i = 0; i < this.count; i++) {
+            let a = angle + (i - (this.count - 1) / 2) * spread;
+            let rad = a * Math.PI / 180;
+            G.bullets.push(new Bullet(
+                this.x, this.y - 20,
+                Math.cos(rad) * 10 * this.speed,
+                Math.sin(rad) * 10 * this.speed,
+                this.dmg, this.pierce, this.bounce, {...this.buffs}
+            ));
+        }
+    }
     draw() {
-        for(let i = 0; i < this.segments.length; i++) {
-            let s = this.segments[i];
-            let r = this.radius * (1 - (i / 100) * 0.3);
-            if (r < 10) r = 10;
-            
-            let hpRatio = s.hp / this.segHp;
-            let segColor = hpRatio > 0.5 ? '#44cc44' : (hpRatio > 0.2 ? '#ffaa00' : '#ff4444');
-            
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, r, 0, Math.PI*2);
-            ctx.fillStyle = segColor;
-            ctx.fill();
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // 格子内显示血量数字
-            ctx.fillStyle = '#fff';
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 3;
-            ctx.font = 'bold ' + Math.max(12, r * 0.8) + 'px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.strokeText(Math.max(0, Math.ceil(s.hp)), s.x, s.y);
-            ctx.fillText(Math.max(0, Math.ceil(s.hp)), s.x, s.y);
-        }
-
-        // 头部
-        ctx.save();
-        ctx.translate(this.headX, this.headY);
-        
-        for(let t=0; t<6; t++) {
-            let angle = (t / 6) * Math.PI * 2 + time * 0.1;
-            let len = 40 + Math.sin(time*0.3 + t)*10;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.quadraticCurveTo(
-                Math.cos(angle)*len*0.5 + Math.sin(time*0.5)*10, 
-                Math.sin(angle)*len*0.5, 
-                Math.cos(angle)*len, 
-                Math.sin(angle)*len
-            );
-            ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 4; ctx.stroke();
-        }
-
-        ctx.beginPath(); ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI*2);
-        let headGrad = ctx.createRadialGradient(-5, -5, 5, 0, 0, this.radius * 1.5);
-        headGrad.addColorStop(0, '#aaffaa'); headGrad.addColorStop(0.5, '#00ff00'); headGrad.addColorStop(1, '#004400');
-        ctx.fillStyle = headGrad; ctx.fill();
-        
-        ctx.fillStyle = 'red';
-        ctx.beginPath(); ctx.arc(-10, -5, 6, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10, -5, 6, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'black';
-        ctx.beginPath(); ctx.arc(-10, -5, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10, -5, 2, 0, Math.PI*2); ctx.fill();
-        
-        ctx.restore();
-    }
-
-    takeDamage(dmg, segIndex) {
-        if (segIndex !== undefined && segIndex >= 0 && segIndex < this.segments.length) {
-            // 打身体段（格子）
-            this.segments[segIndex].hp -= dmg;
-            showDamage(this.segments[segIndex].x, this.segments[segIndex].y, dmg, Math.random() < 0.2);
-            
-            if (this.segments[segIndex].hp <= 0) {
-                // 打掉整段
-                let seg = this.segments[segIndex];
-                for(let k=0; k<8; k++) {
-                    particles.push({
-                        x: seg.x, y: seg.y,
-                        vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
-                        life: 20, color: '#00ff00', size: 3 + Math.random()*5
-                    });
-                }
-                this.segments.splice(segIndex, 1);
-                score += 10;
-                this.retreatAmount = 40; // 打掉段触发后退
-                spawnXpOrb(seg.x, seg.y, 25); // 掉落经验球
-                this.hp = Math.max(0, this.hp - this.segHp);
-            } else {
-                this.hp = Math.max(0, this.hp - dmg);
-            }
-        } else {
-            // 打头部
-            this.hp = Math.max(0, this.hp - dmg);
-            showDamage(this.headX, this.headY - 30, dmg, Math.random() < 0.2);
-            this.retreatAmount = Math.min(this.retreatAmount + 5, 20);
-        }
-        
-        screenShake = Math.min(10, screenShake + 1);
-        for(let k=0; k<3; k++) {
-            particles.push({
-                x: this.headX, y: this.headY,
-                vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
-                life: 20, color: '#00ff00', size: 3 + Math.random()*5
-            });
-        }
-
-        document.getElementById('boss-hp-fill').style.width = (Math.max(0, this.hp / this.maxHp) * 100) + '%';
-        
-        if (this.hp <= 0 || this.segments.length === 0) {
-            score += 1000;
-            for(let k=0; k<100; k++) {
-                particles.push({
-                    x: this.headX, y: this.headY,
-                    vx: (Math.random()-0.5)*20, vy: (Math.random()-0.5)*20,
-                    life: 60, color: Math.random()>0.5?'#00ff00':'#ffffff', size: 5+Math.random()*10
-                });
-            }
-            setTimeout(() => {
-                boss = new SnakeBoss();
-                boss.hp += 2000; boss.maxHp = boss.hp;
-                boss.speed += 0.3;
-                boss.segHp += 10;
-                document.getElementById('boss-hp-fill').style.width = '100%';
-            }, 1000);
-            this.segments = []; 
-        }
+        X.save();
+        X.translate(this.x, this.y);
+        // 核心光效 - 鬼新娘风格
+        X.shadowBlur = 15; X.shadowColor = '#ff4466';
+        X.beginPath(); X.arc(0, 0, this.r, 0, Math.PI * 2);
+        let grad = X.createRadialGradient(0, -5, 5, 0, 0, this.r);
+        grad.addColorStop(0, 'rgba(255,100,100,0.8)');
+        grad.addColorStop(0.4, 'rgba(200,0,50,0.6)');
+        grad.addColorStop(1, 'rgba(100,0,0,0.1)');
+        X.fillStyle = grad; X.fill();
+        X.strokeStyle = '#ff4466'; X.lineWidth = 2; X.stroke();
+        // 旋转护盾
+        X.rotate(G.time * 0.05);
+        X.beginPath(); X.arc(0, 0, this.r + 8, 0, Math.PI * 1.5);
+        X.strokeStyle = '#fff'; X.lineWidth = 3; X.stroke();
+        X.restore();
     }
 }
 
-function showDamage(x, y, dmg, isCrit) {
-    damageNums.push({ x: x+(Math.random()-0.5)*20, y: y, val: Math.floor(dmg), life: 40, color: isCrit?'#ffff00':'#ffffff', size: isCrit?24:16, vy: -2 });
-}
-
-function restartGame() {
-    player.hp = player.maxHp; player.level = 1; player.xp = 0; player.damage = 50;
-    player.fireRate = 25; player.bulletCount = 1; player.pierce = 0;
-    player.hasAngel = false; player.angelCount = 0;
-    player.bulletSpeed = 14; player.bulletSize = 4; player.critRate = 0;
-    player.invincible = 0; player.skills = [];
-    boss = new SnakeBoss();
-    bullets = []; angels = []; particles = []; damageNums = []; xpOrbs = [];
-    score = 0; time = 0; screenShake = 0;
-    document.getElementById('game-over').style.display = 'none';
-    document.getElementById('boss-hp-fill').style.width = '100%';
-    updateXpBar(); updateHpBar();
-    gameState = 'playing';
-}
-
-function gameOver() {
-    gameState = 'gameover';
-    document.getElementById('game-over').style.display = 'flex';
-    document.getElementById('final-score').innerText = score;
-}
-
-function update() {
-    if (gameState !== 'playing') return;
-    time++;
-    
-    // 玩家移动
-    if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.x -= 10;
-    if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x += 10;
-    
-    let distToInput = inputX - player.x;
-    if (Math.abs(distToInput) > 2) {
-        player.x += distToInput * 0.15;
+// 子弹类
+class Bullet {
+    constructor(x, y, vx, vy, dmg, pierce, bounce, buffs) {
+        this.x = x; this.y = y;
+        this.vx = vx; this.vy = vy;
+        this.dmg = dmg; this.pierce = pierce;
+        this.bounce = bounce; this.maxBounce = bounce;
+        this.buffs = buffs || {};
+        this.r = 4; this.life = 300;
+        this.color = '#ff0'; this.trail = [];
     }
-    
-    player.x = Math.max(player.radius, Math.min(W - player.radius, player.x));
-    if (player.invincible > 0) player.invincible--;
-    
-    let secs = Math.floor(time/60);
-    document.getElementById('time').innerText = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`;
-    document.getElementById('score').innerText = score;
-
-    if(!boss) boss = new SnakeBoss();
-    boss.update();
-
-    // 射击
-    if (player.fireTimer > 0) player.fireTimer--;
-    else {
-        player.fireTimer = player.fireRate;
-        let targetX = boss.headX, targetY = boss.headY;
-        let angle = Math.atan2(targetY - player.y, targetX - player.x);
-        let spread = player.bulletCount > 1 ? 0.25 : 0;
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
         
-        for(let i=0; i<player.bulletCount; i++) {
-            let a = angle + (i - (player.bulletCount-1)/2) * spread;
-            let dmg = player.damage;
-            if (player.critRate > 0 && Math.random() < player.critRate) dmg *= 2;
-            bullets.push({
-                x: player.x, y: player.y,
-                vx: Math.cos(a) * player.bulletSpeed,
-                vy: Math.sin(a) * player.bulletSpeed,
-                dmg: dmg, color: '#00ffff', pierce: player.pierce, life: 200,
-                size: player.bulletSize
-            });
+        // 拖尾
+        this.trail.push({x:this.x, y:this.y, life:8});
+
+        // 墙壁反弹 (原版核心物理)
+        let hit = false;
+        if (this.x < 0) { this.x = 0; this.vx *= -1; hit = true; }
+        if (this.x > W) { this.x = W; this.vx *= -1; hit = true; }
+        if (this.y < 0) { this.y = 0; this.vy *= -1; hit = true; }
+        if (this.y > H) { this.y = H; this.vy *= -1; hit = true; }
+
+        if (hit) {
+            this.bounce--;
+            G.addParticles(this.x, this.y, '#0ff', 3);
         }
-    }
 
-    // 天使
-    if (player.hasAngel && angels.length < player.angelCount) {
-        angels.push({ x: W/2, y: H/2, timer: 0 });
-    }
-    angels.forEach(a => {
-        a.timer++;
-        a.x = W/2 + Math.sin(a.timer * 0.03) * 150;
-        a.y = H/3 + Math.cos(a.timer * 0.04) * 100;
-        if (a.timer % 20 === 0) {
-             bullets.push({
-                x: a.x, y: a.y,
-                vx: (boss.headX - a.x) * 0.06,
-                vy: (boss.headY - a.y) * 0.06,
-                dmg: player.damage * 0.3, color: '#ffff00', pierce: 0, life: 200,
-                size: player.bulletSize
-            });
-        }
-    });
+        // 判定碰撞蛇身
+        if (G.dragon && G.dragon.alive) {
+            for (let i = 0; i < G.dragon.segs.length; i++) {
+                let s = G.dragon.segs[i];
+                if (s.hp <= 0) continue;
+                let dx = this.x - s.x, dy = this.y - s.y;
+                if (Math.sqrt(dx*dx + dy*dy) < s.r + this.r) {
+                    // 伤害计算
+                    let isCrit = Math.random() < G.p.crit;
+                    let d = this.dmg * (isCrit ? G.p.critDmg : 1);
+                    s.hp -= d;
+                    G.dragon.hp -= d;
+                    s.hit = 5;
+                    G.addNum(s.x, s.y, Math.floor(d), isCrit, isCrit ? '#ff0' : '#fff');
+                    G.addParticles(s.x, s.y, '#f00', 4);
 
-    // 子弹 - 碰撞检测改为打身体段（格子）
-    for(let i=bullets.length-1; i>=0; i--) {
-        let b = bullets[i];
-        b.x += b.vx; b.y += b.vy;
-        
-        particles.push({ x: b.x, y: b.y, vx: 0, vy: 0, life: 5, color: b.color, size: 2 });
+                    // Buff 效果
+                    if (this.buffs && this.buffs.slow) G.dragon.spd *= 0.95;
+                    if (this.buffs && this.buffs.burn) s.dot = 20;
 
-        if(b.x < 0 || b.x > W) { bullets.splice(i, 1); continue; }
-        if(b.y < -2000 || b.y > H + 2000) { bullets.splice(i, 1); continue; }
-
-        if(boss) {
-            // 先检查身体段（格子）碰撞
-            let hitSeg = false;
-            for(let s = 0; s < boss.segments.length; s++) {
-                let seg = boss.segments[s];
-                let r = boss.radius * (1 - (s / 100) * 0.3);
-                if (r < 10) r = 10;
-                let d = Math.hypot(b.x - seg.x, b.y - seg.y);
-                if(d < r + b.size) {
-                    boss.takeDamage(b.dmg, s);
-                    b.pierce--;
-                    hitSeg = true;
+                    this.pierce--;
+                    if (this.pierce < 0 || this.bounce < 0) { this.life = 0; }
+                    
+                    if (G.dragon.hp <= 0) G.dragonDie();
+                    updateUI();
                     break;
                 }
             }
-            if (!hitSeg) {
-                // 检查头部碰撞
-                let d = Math.hypot(b.x - boss.headX, b.y - boss.headY);
-                if(d < boss.radius * 2) {
-                    boss.takeDamage(b.dmg);
-                    b.pierce--;
-                }
+        }
+
+        if (this.life <= 0 || this.bounce < 0) return false;
+        return true;
+    }
+    draw() {
+        // 画拖尾
+        for (let t of this.trail) {
+            t.life--;
+            if(t.life > 0) {
+                X.globalAlpha = t.life/8 * 0.5;
+                X.fillStyle = this.color;
+                X.beginPath(); X.arc(t.x, t.y, 2, 0, Math.PI*2); X.fill();
             }
-            if(b.pierce < 0) { bullets.splice(i, 1); continue; }
+        }
+        X.globalAlpha = 1;
+        X.fillStyle = this.color;
+        X.beginPath(); X.arc(this.x, this.y, this.r, 0, Math.PI*2); X.fill();
+    }
+}
+
+// 蛇 BOSS 类
+class Dragon {
+    constructor(wave) {
+        this.wave = wave;
+        this.segs = [];
+        this.count = 30 + wave * 5;
+        this.r = 25;
+        this.spd = 1.5 + wave * 0.1;
+        this.headX = W/2; this.headY = 80;
+        this.angle = 0;
+        this.alive = true;
+        
+        // 创建蛇身 - 链式物理
+        for(let i=0; i<this.count; i++) {
+            this.segs.push({
+                x: W/2, y: 80 - i*12,
+                r: Math.max(8, this.r - i*0.3),
+                hp: 100 + wave*50, maxHp: 100 + wave*50,
+                hit: 0
+            });
+        }
+        this.hp = this.count * (100 + wave*50);
+        this.maxHp = this.hp;
+        updateUI();
+    }
+    update() {
+        if (!this.alive) return;
+        
+        // 蛇头 AI (正弦曲线 + 随机扰动)
+        this.angle += this.spd * 0.02;
+        this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
+        this.headY = 80 + Math.sin(G.time * 0.01) * 40;
+
+        // 蛇身跟随 (链式物理)
+        let last = {x: this.headX, y: this.headY};
+        for (let s of this.segs) {
+            let dx = last.x - s.x, dy = last.y - s.y;
+            let d = Math.sqrt(dx*dx + dy*dy);
+            if (d > 12) {
+                let ratio = 12/d;
+                s.x = last.x - dx*ratio;
+                s.y = last.y - dy*ratio;
+            }
+            last = {x:s.x, y:s.y};
+            if(s.hit > 0) s.hit--;
+        }
+
+        // 碰撞玩家
+        let dx = this.headX - G.p.x, dy = this.headY - G.p.y;
+        if (Math.sqrt(dx*dx + dy*dy) < this.r + G.p.r) {
+            G.p.hp -= 80;
+            G.shake = 10;
+            G.addNum(G.p.x, G.p.y, 80, true, '#f00');
+            if (G.p.hp <= 0) gameover();
+            updateUI();
         }
     }
-
-    // 粒子
-    for(let i=particles.length-1; i>=0; i--) {
-        let p = particles[i];
-        p.x += p.vx; p.y += p.vy;
-        p.life--;
-        if(p.life <= 0) particles.splice(i, 1);
+    draw() {
+        if (!this.alive) return;
+        // 画身 - 鬼新娘风格（红黑配色）
+        for (let i=this.segs.length-1; i>=0; i--) {
+            let s = this.segs[i];
+            if (s.hp <= 0) continue;
+            X.beginPath(); X.arc(s.x, s.y, s.r, 0, Math.PI*2);
+            X.fillStyle = s.hit > 0 ? '#fff' : `hsl(${340+i*2}, 80%, ${40+Math.max(0, s.hp/s.maxHp)*30}%)`;
+            X.fill();
+            X.strokeStyle = '#440022'; X.lineWidth = 1; X.stroke();
+            // 血条
+            if (s.hp < s.maxHp) {
+                X.fillStyle = '#333'; X.fillRect(s.x-s.r, s.y-s.r-6, s.r*2, 3);
+                X.fillStyle = '#ff4466'; X.fillRect(s.x-s.r, s.y-s.r-6, s.r*2*(s.hp/s.maxHp), 3);
+            }
+        }
+        // 画头 - 鬼新娘风格
+        X.save(); X.translate(this.headX, this.headY);
+        X.beginPath(); X.arc(0, 0, this.r, 0, Math.PI*2);
+        let g = X.createRadialGradient(0,0,5, 0,0,this.r);
+        g.addColorStop(0, '#ff88aa'); g.addColorStop(1, '#440022');
+        X.fillStyle = g; X.fill();
+        // 眼
+        X.fillStyle = '#f00'; X.beginPath(); X.arc(-8,-5, 5, 0, Math.PI*2); X.fill();
+        X.beginPath(); X.arc(8,-5, 5, 0, Math.PI*2); X.fill();
+        X.fillStyle = '#000'; X.beginPath(); X.arc(-8,-5, 2, 0, Math.PI*2); X.fill();
+        X.beginPath(); X.arc(8,-5, 2, 0, Math.PI*2); X.fill();
+        X.restore();
     }
-
-    // 数字
-    for(let i=damageNums.length-1; i>=0; i--) {
-        let d = damageNums[i];
-        d.y += d.vy; d.life--;
-        if(d.life <= 0) damageNums.splice(i, 1);
-    }
-    
-    // 经验球
-    updateXpOrbs();
-    
-    if(screenShake > 0) screenShake *= 0.9;
-    if(screenShake < 0.5) screenShake = 0;
 }
 
-function draw() {
-    ctx.clearRect(0, 0, W, H);
+function updateUI() {
+    document.getElementById('score').textContent = G.score;
+    let m = Math.floor(G.time/60/60), s = Math.floor(G.time/60)%60;
+    document.getElementById('time').textContent = `${m}:${s<10?'0':''}${s}`;
     
-    ctx.save();
-    if(screenShake > 0) {
-        ctx.translate((Math.random()-0.5)*screenShake*5, (Math.random()-0.5)*screenShake*5);
+    // Boss HP
+    if (G.dragon) {
+        let pct = Math.max(0, G.dragon.hp / G.dragon.maxHp * 100);
+        document.getElementById('boss-hp-fill').style.width = pct + '%';
     }
-
-    // 背景
-    ctx.strokeStyle = 'rgba(255, 0, 50, 0.05)'; ctx.lineWidth = 2;
-    for(let i=0; i<W; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke(); }
-    
-    if(boss) boss.draw();
-    
-    angels.forEach(a => {
-        ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('👼', a.x, a.y);
-        ctx.beginPath(); ctx.arc(a.x, a.y, 30, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill();
-    });
-
-    drawPlayer();
-    
-    bullets.forEach(b => {
-        ctx.beginPath(); ctx.arc(b.x, b.y, b.size || 4, 0, Math.PI*2);
-        ctx.fillStyle = b.color; ctx.shadowBlur = 10; ctx.shadowColor = b.color; ctx.fill(); ctx.shadowBlur = 0;
-    });
-    
-    damageNums.forEach(d => {
-        ctx.fillStyle = d.color; ctx.font = `bold ${d.size}px Arial`; ctx.fillText(d.val, d.x, d.y);
-    });
-
-    particles.forEach(p => {
-        ctx.globalAlpha = p.life / 20;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill();
-        ctx.globalAlpha = 1;
-    });
-
-    drawXpOrbs();
-    
-    ctx.restore();
+    // Player HP
+    if (G.p) {
+        let php = Math.max(0, G.p.hp / G.p.maxHp * 100);
+        document.getElementById('player-hp-fill').style.width = php + '%';
+        document.getElementById('player-hp-text').textContent = `${Math.floor(G.p.hp)}/${G.p.maxHp}`;
+    }
+    // XP
+    if (G.p) {
+        document.getElementById('xp-fill').style.width = (G.p.xp / G.p.xpNext * 100) + '%';
+    }
 }
 
+function gameover() {
+    G.state = 'dead';
+    document.getElementById('game-over').style.display = 'flex';
+    document.getElementById('final-score').textContent = G.score;
+}
+
+G.dragonDie = function() {
+    G.dragon.alive = false;
+    G.score += 500 + G.wave * 200;
+    G.addParticles(G.dragon.headX, G.dragon.headY, '#ff4466', 30);
+    // 下一波
+    setTimeout(() => {
+        G.wave++;
+        G.dragon = new Dragon(G.wave);
+        let msg = document.getElementById('wave-msg');
+        msg.textContent = `第 ${G.wave} 波`;
+        msg.style.opacity = 1;
+        setTimeout(() => msg.style.opacity = 0, 1500);
+    }, 1000);
+}
+
+G.addParticles = function(x, y, c, n) {
+    for(let i=0; i<n; i++) {
+        G.particles.push({
+            x, y, vx: (Math.random()-.5)*10, vy: (Math.random()-.5)*10, 
+            life: 20, c: c, s: 2+Math.random()*3
+        });
+    }
+}
+G.addNum = function(x, y, d, crit, c) {
+    G.nums.push({x, y, d, life: 30, crit, c: c||'#fff'});
+}
+
+// ==================== 8个原版技能 ====================
+const SKILLS = [
+    {name:'多发弹', icon:'🔥', desc:'攻击+1', fn:p=>p.count++},
+    {name:'弹射+', icon:'💫', desc:'弹射次数+1', fn:p=>p.bounce++},
+    {name:'穿透+', icon:'🎯', desc:'穿透+1', fn:p=>p.pierce++},
+    {name:'伤害+', icon:'⚔️', desc:'伤害+20', fn:p=>p.dmg+=20},
+    {name:'射速+', icon:'⚡', desc:'间隔-10%', fn:p=>p.rate=Math.max(5, p.rate*0.9)},
+    {name:'暴击+', icon:'🎲', desc:'暴击+5%', fn:p=>p.crit=Math.min(.8, p.crit+.05)},
+    {name:'减速弹', icon:'❄️', desc:'击中减速', fn:p=>{p.buffs.slow=true;}},
+    {name:'灼烧弹', icon:'🔥', desc:'附加 DOT', fn:p=>{p.buffs.burn=true;}},
+];
+
+function showSkills() {
+    G.state = 'skill';
+    let menu = document.getElementById('skill-menu');
+    let box = document.getElementById('skills');
+    box.innerHTML = '';
+    // 随机 3 个
+    let pool = [...SKILLS].sort(()=>Math.random()-.5).slice(0,3);
+    for(let s of pool) {
+        let d = document.createElement('div');
+        d.className = 'skill-card';
+        d.innerHTML = `<div class="s-icon">${s.icon}</div><div><div class="s-name">${s.name}</div><div class="s-desc">${s.desc}</div></div>`;
+        d.onclick = () => {
+            s.fn(G.p);
+            menu.style.display = 'none';
+            G.state = 'play';
+            updateBuffs();
+        };
+        box.appendChild(d);
+    }
+    menu.style.display = 'block';
+}
+
+function updateBuffs() {
+    let bar = document.getElementById('buff-bar');
+    let html = '';
+    if (G.p.buffs.slow) html += '<div class="buff-item">❄️</div>';
+    if (G.p.buffs.burn) html += '<div class="buff-item">🔥</div>';
+    bar.innerHTML = html;
+}
+
+// 游戏循环
 function loop() {
-    update();
-    draw();
+    if (G.state == 'play') {
+        G.time++; G.frame++;
+        G.p.update();
+        G.dragon.update();
+
+        // 更新子弹
+        G.bullets = G.bullets.filter(b => b.update());
+
+        // 粒子更新
+        G.particles = G.particles.filter(p => {
+            p.x += p.vx; p.y += p.vy; p.life--;
+            return p.life > 0;
+        });
+
+        // 升级
+        G.p.xp += 1;
+        if (G.p.xp >= G.p.xpNext) {
+            G.p.xp -= G.p.xpNext;
+            G.p.lv++;
+            G.p.xpNext = Math.floor(G.p.xpNext * 1.4);
+            showSkills();
+        }
+
+        if(G.shake>0) G.shake*=.9;
+    }
+
+    // 渲染
+    X.fillStyle = '#050510'; X.fillRect(0,0,W,H);
+    X.save();
+    if(G.shake>0.5) X.translate((Math.random()-.5)*G.shake, (Math.random()-.5)*G.shake);
+    
+    // 网格背景
+    X.strokeStyle = 'rgba(255,255,255,0.05)';
+    for(let i=0; i<W; i+=50){ X.beginPath(); X.moveTo(i,0); X.lineTo(i,H); X.stroke(); }
+    
+    if(G.dragon) G.dragon.draw();
+    if(G.p) G.p.draw();
+    G.bullets.forEach(b => b.draw());
+    G.particles.forEach(p => {
+        X.fillStyle = p.c; X.beginPath(); X.arc(p.x,p.y,p.s,0,Math.PI*2); X.fill();
+    });
+    G.nums = G.nums.filter(n => {
+        n.y -= 2; n.life--;
+        X.fillStyle = n.c; X.font = `bold ${n.crit?22:14}px sans-serif`; X.textAlign='center';
+        X.fillText(n.d, n.x, n.y);
+        return n.life > 0;
+    });
+    X.restore();
+    
     requestAnimationFrame(loop);
 }
+
+// 初始化
+G.p = new Player();
+G.dragon = new Dragon(1);
+
+// 重新开始
+document.getElementById('restart-btn').onclick = function() {
+    G.state = 'play'; G.time = 0; G.frame = 0; G.score = 0; G.shake = 0; G.wave = 0;
+    G.bullets = []; G.particles = []; G.nums = [];
+    G.p = new Player();
+    G.dragon = new Dragon(1);
+    document.getElementById('game-over').style.display = 'none';
+    updateUI();
+};
+
 loop();
 </script>
 </body>
