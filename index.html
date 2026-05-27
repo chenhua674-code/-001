@@ -245,7 +245,7 @@ class Dragon {
         
         for(let i=0; i<this.count; i++) {
             this.segs.push({
-                x: W/2, y: 80 - i*12,
+                x: W/2, y: 80 + i*12,
                 r: Math.max(8, this.r - i*0.3),
                 hp: 100 + wave*50, maxHp: 100 + wave*50,
                 hit: 0, dot: 0
@@ -257,19 +257,26 @@ class Dragon {
     }
     update() {
         if (!this.alive) return;
-        // 蛇头 AI (正弦曲线)
+        // 蛇头 AI (正弦曲线 + 缓慢向玩家移动)
         this.angle += this.spd * 0.02 * this.slowFactor;
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
-        this.headY = 80 + Math.sin(G.time * 0.01) * 40;
+        // 蛇头缓慢向玩家靠近（稳定下降，无扰动）
+        let targetY = Math.min(G.p.y - 100, H * 0.7);
+        this.headY += (targetY - this.headY) * 0.012;
 
+        // 蛇身跟随 (链式物理 - 固定12像素间距)
         let last = {x: this.headX, y: this.headY};
         for (let s of this.segs) {
-            let dx = last.x - s.x, dy = last.y - s.y;
+            let dx = s.x - last.x, dy = s.y - last.y;
             let d = Math.sqrt(dx*dx + dy*dy);
-            if (d > 12) {
-                let ratio = 12/d;
-                s.x = last.x - dx*ratio;
-                s.y = last.y - dy*ratio;
+            if (d < 0.01) {
+                // 如果重叠，沿上次方向延伸
+                s.x = last.x;
+                s.y = last.y + 12;
+            } else {
+                // 固定间距：拉到12像素
+                s.x = last.x + (dx / d) * 12;
+                s.y = last.y + (dy / d) * 12;
             }
             last = {x:s.x, y:s.y};
             if(s.hit > 0) s.hit--;
@@ -283,14 +290,18 @@ class Dragon {
                 if (s.hp <= 0) { if (G.dragon.hp <= 0) G.dragonDie(); }
             }
         }
-
-        let dx = this.headX - G.p.x, dy = this.headY - G.p.y;
-        if (Math.sqrt(dx*dx + dy*dy) < this.r + G.p.r) {
-            G.p.hp -= 80;
-            G.shake = 10;
-            G.addNum(G.p.x, G.p.y, 80, true, '#f00');
-            if (G.p.hp <= 0) gameover();
-            updateUI();
+        // 碰撞玩家 - 蛇身段碰到玩家
+        for (let s of this.segs) {
+            if (s.hp <= 0) continue;
+            let dx = s.x - G.p.x, dy = s.y - G.p.y;
+            if (Math.sqrt(dx*dx + dy*dy) < s.r + G.p.r) {
+                G.p.hp -= 50;
+                G.shake = 8;
+                G.addNum(G.p.x, G.p.y, 50, true, '#f00');
+                if (G.p.hp <= 0) gameover();
+                updateUI();
+                break;
+            }
         }
     }
     draw() {
