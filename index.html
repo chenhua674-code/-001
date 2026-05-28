@@ -62,7 +62,7 @@ canvas{display:block}
 <div id="game-over">
   <h1>💀 阵亡</h1>
   <p>分数: <span id="final-score">0</span></p>
-  <p id="restart-btn" style="cursor:pointer;padding:12px 30px;background:#f33;color:#fff;font-size:18px;border-radius:6px;margin-top:10px">再来一把</p>
+  <p id="restart-btn">再来一把</p>
 </div>
 
 <script>
@@ -81,7 +81,7 @@ resize();
 
 // 游戏状态
 let G = {
-    state: 'play',
+    state: 'play', // play, skill, dead
     time: 0, frame: 0, score: 0,
     shake: 0, wave: 0,
     bullets: [], particles: [], nums: [],
@@ -92,7 +92,6 @@ let G = {
 let MX = W / 2;
 C.addEventListener('mousemove', e => MX = e.clientX);
 C.addEventListener('touchmove', e => { if(e.touches[0]) MX = e.touches[0].clientX; }, {passive:true});
-C.addEventListener('touchstart', e => { if(e.touches[0]) MX = e.touches[0].clientX; }, {passive:true});
 
 // 玩家类
 class Player {
@@ -105,13 +104,15 @@ class Player {
         this.xp = 0; this.xpNext = 200; this.lv = 1;
         this.pierce = 0; this.bounce = 1; this.count = 1; this.speed = 1;
         this.crit = 0.05; this.critDmg = 1.5;
-        this.buffs = {slow:false, burn:false};
+        this.buffs = {slow:false, burn:false, poison:false};
     }
     update() {
+        // 移动跟随
         let dx = MX - this.x;
         this.x += dx * 0.12;
         this.x = Math.max(this.r, Math.min(W - this.r, this.x));
         
+        // 射击
         if (this.timer-- <= 0) {
             this.timer = this.rate;
             this.fire();
@@ -134,6 +135,7 @@ class Player {
     draw() {
         X.save();
         X.translate(this.x, this.y);
+        // 核心光效 - 鬼新娘风格
         X.shadowBlur = 15; X.shadowColor = '#ff4466';
         X.beginPath(); X.arc(0, 0, this.r, 0, Math.PI * 2);
         let grad = X.createRadialGradient(0, -5, 5, 0, 0, this.r);
@@ -142,6 +144,7 @@ class Player {
         grad.addColorStop(1, 'rgba(100,0,0,0.1)');
         X.fillStyle = grad; X.fill();
         X.strokeStyle = '#ff4466'; X.lineWidth = 2; X.stroke();
+        // 旋转护盾
         X.rotate(G.time * 0.05);
         X.beginPath(); X.arc(0, 0, this.r + 8, 0, Math.PI * 1.5);
         X.strokeStyle = '#fff'; X.lineWidth = 3; X.stroke();
@@ -165,10 +168,10 @@ class Bullet {
         this.y += this.vy;
         this.life--;
         
+        // 拖尾
         this.trail.push({x:this.x, y:this.y, life:8});
-        if (this.trail.length > 20) this.trail.shift();
 
-        // 墙壁反弹
+        // 墙壁反弹 (原版核心物理)
         let hit = false;
         if (this.x < 0) { this.x = 0; this.vx *= -1; hit = true; }
         if (this.x > W) { this.x = W; this.vx *= -1; hit = true; }
@@ -180,13 +183,14 @@ class Bullet {
             G.addParticles(this.x, this.y, '#0ff', 3);
         }
 
-        // 碰撞蛇身
+        // 判定碰撞蛇身
         if (G.dragon && G.dragon.alive) {
             for (let i = 0; i < G.dragon.segs.length; i++) {
                 let s = G.dragon.segs[i];
                 if (s.hp <= 0) continue;
                 let dx = this.x - s.x, dy = this.y - s.y;
                 if (Math.sqrt(dx*dx + dy*dy) < s.r + this.r) {
+                    // 伤害计算
                     let isCrit = Math.random() < G.p.crit;
                     let d = this.dmg * (isCrit ? G.p.critDmg : 1);
                     s.hp -= d;
@@ -195,8 +199,9 @@ class Bullet {
                     G.addNum(s.x, s.y, Math.floor(d), isCrit, isCrit ? '#ff0' : '#fff');
                     G.addParticles(s.x, s.y, '#f00', 4);
 
+                    // Buff 效果
                     if (this.buffs && this.buffs.slow) G.dragon.spd *= 0.95;
-                    if (this.buffs && this.buffs.burn) s.dot = (s.dot||0) + 20;
+                    if (this.buffs && this.buffs.burn) s.dot = 20;
 
                     this.pierce--;
                     if (this.pierce < 0 || this.bounce < 0) { this.life = 0; }
@@ -212,8 +217,8 @@ class Bullet {
         return true;
     }
     draw() {
-        for (let i = 0; i < this.trail.length; i++) {
-            let t = this.trail[i];
+        // 画拖尾
+        for (let t of this.trail) {
             t.life--;
             if(t.life > 0) {
                 X.globalAlpha = t.life/8 * 0.5;
@@ -221,12 +226,9 @@ class Bullet {
                 X.beginPath(); X.arc(t.x, t.y, 2, 0, Math.PI*2); X.fill();
             }
         }
-        this.trail = this.trail.filter(t => t.life > 0);
         X.globalAlpha = 1;
         X.fillStyle = this.color;
-        X.shadowBlur = 8; X.shadowColor = this.color;
         X.beginPath(); X.arc(this.x, this.y, this.r, 0, Math.PI*2); X.fill();
-        X.shadowBlur = 0;
     }
 }
 
@@ -241,14 +243,14 @@ class Dragon {
         this.headX = W/2; this.headY = 80;
         this.angle = 0;
         this.alive = true;
-        this.slowFactor = 1;
         
+        // 创建蛇身 - 链式物理
         for(let i=0; i<this.count; i++) {
             this.segs.push({
                 x: W/2, y: 80 - i*12,
                 r: Math.max(8, this.r - i*0.3),
                 hp: 100 + wave*50, maxHp: 100 + wave*50,
-                hit: 0, dot: 0
+                hit: 0
             });
         }
         this.hp = this.count * (100 + wave*50);
@@ -257,12 +259,13 @@ class Dragon {
     }
     update() {
         if (!this.alive) return;
-        // 蛇头 AI (S型正弦曲线推进)
-        this.angle += this.spd * 0.02 * this.slowFactor;
+        
+        // 蛇头 AI (正弦曲线 + 随机扰动)
+        this.angle += this.spd * 0.02;
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
         this.headY = 80 + Math.sin(G.time * 0.01) * 40;
 
-        // 蛇身跟随 (原版链式物理 - 只拉伸不压缩)
+        // 蛇身跟随 (链式物理)
         let last = {x: this.headX, y: this.headY};
         for (let s of this.segs) {
             let dx = last.x - s.x, dy = last.y - s.y;
@@ -274,32 +277,21 @@ class Dragon {
             }
             last = {x:s.x, y:s.y};
             if(s.hit > 0) s.hit--;
-            
-            // DOT 伤害
-            if (s.dot > 0) {
-                s.dot--;
-                s.hp -= 2;
-                this.hp -= 2;
-                if (Math.random() < 0.3) G.addParticles(s.x, s.y, '#ff4400', 1);
-                if (s.hp <= 0) { if (G.dragon.hp <= 0) G.dragonDie(); }
-            }
         }
-        // 碰撞玩家 - 蛇身段碰到玩家
-        for (let s of this.segs) {
-            if (s.hp <= 0) continue;
-            let dx = s.x - G.p.x, dy = s.y - G.p.y;
-            if (Math.sqrt(dx*dx + dy*dy) < s.r + G.p.r) {
-                G.p.hp -= 50;
-                G.shake = 8;
-                G.addNum(G.p.x, G.p.y, 50, true, '#f00');
-                if (G.p.hp <= 0) gameover();
-                updateUI();
-                break;
-            }
+
+        // 碰撞玩家
+        let dx = this.headX - G.p.x, dy = this.headY - G.p.y;
+        if (Math.sqrt(dx*dx + dy*dy) < this.r + G.p.r) {
+            G.p.hp -= 80;
+            G.shake = 10;
+            G.addNum(G.p.x, G.p.y, 80, true, '#f00');
+            if (G.p.hp <= 0) gameover();
+            updateUI();
         }
     }
     draw() {
         if (!this.alive) return;
+        // 画身 - 鬼新娘风格（红黑配色）
         for (let i=this.segs.length-1; i>=0; i--) {
             let s = this.segs[i];
             if (s.hp <= 0) continue;
@@ -307,7 +299,7 @@ class Dragon {
             X.fillStyle = s.hit > 0 ? '#fff' : `hsl(${340+i*2}, 80%, ${40+Math.max(0, s.hp/s.maxHp)*30}%)`;
             X.fill();
             X.strokeStyle = '#440022'; X.lineWidth = 1; X.stroke();
-            // 段内显示血量数字
+            // 段内血量数字
             if (s.hp < s.maxHp) {
                 X.fillStyle = '#fff';
                 X.font = `bold ${Math.max(8, s.r*0.6)}px sans-serif`;
@@ -320,11 +312,13 @@ class Dragon {
                 X.fillStyle = '#ff4466'; X.fillRect(s.x-s.r, s.y-s.r-6, s.r*2*(s.hp/s.maxHp), 3);
             }
         }
+        // 画头 - 鬼新娘风格
         X.save(); X.translate(this.headX, this.headY);
         X.beginPath(); X.arc(0, 0, this.r, 0, Math.PI*2);
         let g = X.createRadialGradient(0,0,5, 0,0,this.r);
         g.addColorStop(0, '#ff88aa'); g.addColorStop(1, '#440022');
         X.fillStyle = g; X.fill();
+        // 眼
         X.fillStyle = '#f00'; X.beginPath(); X.arc(-8,-5, 5, 0, Math.PI*2); X.fill();
         X.beginPath(); X.arc(8,-5, 5, 0, Math.PI*2); X.fill();
         X.fillStyle = '#000'; X.beginPath(); X.arc(-8,-5, 2, 0, Math.PI*2); X.fill();
@@ -338,15 +332,18 @@ function updateUI() {
     let m = Math.floor(G.time/60/60), s = Math.floor(G.time/60)%60;
     document.getElementById('time').textContent = `${m}:${s<10?'0':''}${s}`;
     
+    // Boss HP
     if (G.dragon) {
         let pct = Math.max(0, G.dragon.hp / G.dragon.maxHp * 100);
         document.getElementById('boss-hp-fill').style.width = pct + '%';
     }
+    // Player HP
     if (G.p) {
         let php = Math.max(0, G.p.hp / G.p.maxHp * 100);
         document.getElementById('player-hp-fill').style.width = php + '%';
         document.getElementById('player-hp-text').textContent = `${Math.floor(G.p.hp)}/${G.p.maxHp}`;
     }
+    // XP
     if (G.p) {
         document.getElementById('xp-fill').style.width = (G.p.xp / G.p.xpNext * 100) + '%';
     }
@@ -362,6 +359,7 @@ G.dragonDie = function() {
     G.dragon.alive = false;
     G.score += 500 + G.wave * 200;
     G.addParticles(G.dragon.headX, G.dragon.headY, '#ff4466', 30);
+    // 下一波
     setTimeout(() => {
         G.wave++;
         G.dragon = new Dragon(G.wave);
@@ -384,7 +382,7 @@ G.addNum = function(x, y, d, crit, c) {
     G.nums.push({x, y, d, life: 30, crit, c: c||'#fff'});
 }
 
-// 8个原版技能
+// ==================== 8个原版技能 ====================
 const SKILLS = [
     {name:'多发弹', icon:'🔥', desc:'攻击+1', fn:p=>p.count++},
     {name:'弹射+', icon:'💫', desc:'弹射次数+1', fn:p=>p.bounce++},
@@ -392,8 +390,8 @@ const SKILLS = [
     {name:'伤害+', icon:'⚔️', desc:'伤害+20', fn:p=>p.dmg+=20},
     {name:'射速+', icon:'⚡', desc:'间隔-10%', fn:p=>p.rate=Math.max(5, p.rate*0.9)},
     {name:'暴击+', icon:'🎲', desc:'暴击+5%', fn:p=>p.crit=Math.min(.8, p.crit+.05)},
-    {name:'减速弹', icon:'❄️', desc:'击中减速龙', fn:p=>{p.buffs.slow=true;}},
-    {name:'灼烧弹', icon:'🔥', desc:'附加 DOT 持续伤害', fn:p=>{p.buffs.burn=true;}},
+    {name:'减速弹', icon:'❄️', desc:'击中减速', fn:p=>{p.buffs.slow=true;}},
+    {name:'灼烧弹', icon:'🔥', desc:'附加 DOT', fn:p=>{p.buffs.burn=true;}},
 ];
 
 function showSkills() {
@@ -401,6 +399,7 @@ function showSkills() {
     let menu = document.getElementById('skill-menu');
     let box = document.getElementById('skills');
     box.innerHTML = '';
+    // 随机 3 个
     let pool = [...SKILLS].sort(()=>Math.random()-.5).slice(0,3);
     for(let s of pool) {
         let d = document.createElement('div');
@@ -425,20 +424,24 @@ function updateBuffs() {
     bar.innerHTML = html;
 }
 
+// 游戏循环
 function loop() {
     if (G.state == 'play') {
         G.time++; G.frame++;
         G.p.update();
-        if (G.dragon) G.dragon.update();
+        G.dragon.update();
 
+        // 更新子弹
         G.bullets = G.bullets.filter(b => b.update());
 
+        // 粒子更新
         G.particles = G.particles.filter(p => {
             p.x += p.vx; p.y += p.vy; p.life--;
             return p.life > 0;
         });
 
-        // XP 获取（降低频率，原版太频繁）
+        // 升级
+        // XP 获取（降低频率，5帧+1）
         G.p.xp += G.frame % 5 === 0 ? 1 : 0;
         if (G.p.xp >= G.p.xpNext) {
             G.p.xp -= G.p.xpNext;
@@ -450,10 +453,12 @@ function loop() {
         if(G.shake>0) G.shake*=.9;
     }
 
+    // 渲染
     X.fillStyle = '#050510'; X.fillRect(0,0,W,H);
     X.save();
     if(G.shake>0.5) X.translate((Math.random()-.5)*G.shake, (Math.random()-.5)*G.shake);
     
+    // 网格背景
     X.strokeStyle = 'rgba(255,255,255,0.05)';
     for(let i=0; i<W; i+=50){ X.beginPath(); X.moveTo(i,0); X.lineTo(i,H); X.stroke(); }
     
@@ -474,9 +479,11 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
+// 初始化
 G.p = new Player();
 G.dragon = new Dragon(1);
 
+// 重新开始
 document.getElementById('restart-btn').onclick = function() {
     G.state = 'play'; G.time = 0; G.frame = 0; G.score = 0; G.shake = 0; G.wave = 0;
     G.bullets = []; G.particles = []; G.nums = [];
