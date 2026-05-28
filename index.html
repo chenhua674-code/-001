@@ -257,12 +257,10 @@ class Dragon {
     }
     update() {
         if (!this.alive) return;
-        // 蛇头 AI (正弦曲线 + 缓慢向玩家移动)
+        // 蛇头 AI (S型正弦曲线推进)
         this.angle += this.spd * 0.02 * this.slowFactor;
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
-        // 蛇头缓慢向玩家靠近（稳定下降，无扰动）
-        let targetY = Math.min(G.p.y - 100, H * 0.7);
-        this.headY += (targetY - this.headY) * 0.012;
+        this.headY = 80 + Math.sin(G.time * 0.01) * 40;
 
         // 蛇身跟随 (原版链式物理 - 只拉伸不压缩)
         let last = {x: this.headX, y: this.headY};
