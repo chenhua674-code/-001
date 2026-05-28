@@ -245,7 +245,7 @@ class Dragon {
         
         for(let i=0; i<this.count; i++) {
             this.segs.push({
-                x: W/2, y: 80 + i*12,
+                x: W/2, y: 80 - i*12,
                 r: Math.max(8, this.r - i*0.3),
                 hp: 100 + wave*50, maxHp: 100 + wave*50,
                 hit: 0, dot: 0
