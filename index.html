@@ -264,19 +264,15 @@ class Dragon {
         let targetY = Math.min(G.p.y - 100, H * 0.7);
         this.headY += (targetY - this.headY) * 0.012;
 
-        // 蛇身跟随 (链式物理 - 固定12像素间距)
+        // 蛇身跟随 (原版链式物理 - 只拉伸不压缩)
         let last = {x: this.headX, y: this.headY};
         for (let s of this.segs) {
-            let dx = s.x - last.x, dy = s.y - last.y;
+            let dx = last.x - s.x, dy = last.y - s.y;
             let d = Math.sqrt(dx*dx + dy*dy);
-            if (d < 0.01) {
-                // 如果重叠，沿上次方向延伸
-                s.x = last.x;
-                s.y = last.y + 12;
-            } else {
-                // 固定间距：拉到12像素
-                s.x = last.x + (dx / d) * 12;
-                s.y = last.y + (dy / d) * 12;
+            if (d > 12) {
+                let ratio = 12/d;
+                s.x = last.x - dx*ratio;
+                s.y = last.y - dy*ratio;
             }
             last = {x:s.x, y:s.y};
             if(s.hit > 0) s.hit--;
