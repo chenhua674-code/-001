@@ -265,7 +265,7 @@ class Dragon {
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
         // 向下推进，到达玩家附近后停住
         if (this.baseY < G.p.y - 100) {
-            this.baseY += 0.15;
+            this.baseY += 0.4;
         }
         this.headY = this.baseY + Math.sin(G.time * 0.01) * 40;
 
