@@ -454,6 +454,11 @@ function loop() {
         if(G.shake>0) G.shake*=.9;
     }
 
+    // 蛇持续移动和碰撞检测（即使升级界面也不停）
+    if (G.dragon && G.dragon.alive && G.state !== 'dead') {
+        G.dragon.update();
+    }
+
     // 渲染
     X.fillStyle = '#050510'; X.fillRect(0,0,W,H);
     X.save();
