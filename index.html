@@ -240,7 +240,7 @@ class Dragon {
         this.count = 30 + wave * 5;
         this.r = 25;
         this.spd = 1.5 + wave * 0.1;
-        this.headX = W/2; this.headY = 80;
+        this.headX = W/2; this.headY = 80; this.baseY = 80;
         this.angle = 0;
         this.alive = true;
         
@@ -260,10 +260,13 @@ class Dragon {
     update() {
         if (!this.alive) return;
         
-        // 蛇头 AI (正弦曲线 + 随机扰动)
+        // 蛇头 AI (S型曲线 + 向下推进)
         this.angle += this.spd * 0.02;
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
-        this.headY = 80 + Math.sin(G.time * 0.01) * 40;
+        // 向下推进 + S型波动
+        this.baseY += 0.15;
+        if (this.baseY > G.p.y - 120) this.baseY = 80;
+        this.headY = this.baseY + Math.sin(G.time * 0.01) * 40;
 
         // 蛇身跟随 (链式物理)
         let last = {x: this.headX, y: this.headY};
