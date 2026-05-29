@@ -240,14 +240,14 @@ class Dragon {
         this.count = 30 + wave * 5;
         this.r = 25;
         this.spd = 1.5 + wave * 0.1;
-        this.headX = W/2; this.headY = 80; this.baseY = 80;
+        this.headX = W/2; this.headY = -50; this.baseY = -50;
         this.angle = 0;
         this.alive = true;
         
         // 创建蛇身 - 链式物理
         for(let i=0; i<this.count; i++) {
             this.segs.push({
-                x: W/2, y: 80 + i*12,
+                x: W/2, y: -50 + i*12,
                 r: Math.max(8, this.r - i*0.3),
                 hp: 100 + wave*50, maxHp: 100 + wave*50,
                 hit: 0
@@ -283,13 +283,12 @@ class Dragon {
             if(s.hit > 0) s.hit--;
         }
 
-        // 碰撞玩家
-        let dx = this.headX - G.p.x, dy = this.headY - G.p.y;
-        if (Math.sqrt(dx*dx + dy*dy) < this.r + G.p.r) {
-            G.p.hp -= 80;
-            G.shake = 10;
-            G.addNum(G.p.x, G.p.y, 80, true, '#f00');
-            if (G.p.hp <= 0) gameover();
+        // 碰撞玩家 - 碰到用户线就输
+        if (this.headY + this.r >= G.p.y) {
+            G.p.hp = 0;
+            G.shake = 15;
+            G.addNum(G.p.x, G.p.y, '突破!', true, '#f00');
+            gameover();
             updateUI();
         }
     }
