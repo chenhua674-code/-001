@@ -267,7 +267,7 @@ class Dragon {
         if (this.baseY < G.p.y - 100) {
             this.baseY += 0.4;
         }
-        this.headY = this.baseY + Math.sin(G.time * 0.01) * 40;
+        this.headY = this.baseY + Math.sin(G.time * 0.015) * 5;
 
         // 蛇身跟随 (链式物理)
         let last = {x: this.headX, y: this.headY};
