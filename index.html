@@ -99,7 +99,7 @@ class Player {
         this.x = W / 2; this.y = H - 80;
         this.r = 20;
         this.hp = 1000; this.maxHp = 1000;
-        this.dmg = 40;
+        this.dmg = 10;
         this.rate = 30; this.timer = 0;
         this.xp = 0; this.xpNext = 200; this.lv = 1;
         this.pierce = 0; this.bounce = 1; this.count = 1; this.speed = 1;
@@ -239,7 +239,7 @@ class Dragon {
         this.segs = [];
         this.count = 100;
         this.r = 25;
-        this.spd = 1.5 + wave * 0.1;
+        this.spd = 0.5 + wave * 0.05;
         this.headX = W/2; this.headY = -50; this.baseY = -50;
         this.angle = 0;
         this.alive = true;
@@ -250,7 +250,7 @@ class Dragon {
             let segHp = (i + 1) * (50 + wave * 30); // 第1段50+wave*30，第100段100*(50+wave*30)
             totalHp += segHp;
             this.segs.push({
-                x: W/2, y: -50 + i*12,
+                x: W/2, y: -50 + i*25,
                 r: Math.max(8, this.r - i*0.3),
                 hp: segHp, maxHp: segHp,
                 hit: 0
@@ -275,8 +275,8 @@ class Dragon {
         for (let s of this.segs) {
             let dx = last.x - s.x, dy = last.y - s.y;
             let d = Math.sqrt(dx*dx + dy*dy);
-            if (d > 12) {
-                let ratio = 12/d;
+            if (d > 25) {
+                let ratio = 25/d;
                 s.x = last.x - dx*ratio;
                 s.y = last.y - dy*ratio;
             }
@@ -392,7 +392,7 @@ const SKILLS = [
     {name:'多发弹', icon:'🔥', desc:'攻击+1', fn:p=>p.count++},
     {name:'弹射+', icon:'💫', desc:'弹射次数+1', fn:p=>p.bounce++},
     {name:'穿透+', icon:'🎯', desc:'穿透+1', fn:p=>p.pierce++},
-    {name:'伤害+', icon:'⚔️', desc:'伤害+20', fn:p=>p.dmg+=20},
+    {name:'伤害+', icon:'⚔️', desc:'伤害+5', fn:p=>p.dmg+=5},
     {name:'射速+', icon:'⚡', desc:'间隔-10%', fn:p=>p.rate=Math.max(5, p.rate*0.9)},
     {name:'暴击+', icon:'🎲', desc:'暴击+5%', fn:p=>p.crit=Math.min(.8, p.crit+.05)},
     {name:'减速弹', icon:'❄️', desc:'击中减速', fn:p=>{p.buffs.slow=true;}},
