@@ -109,7 +109,7 @@ class Player {
     update() {
         // 移动跟随
         let dx = MX - this.x;
-        this.x += dx * 0.12;
+        this.x += dx * 0.06;
         this.x = Math.max(this.r, Math.min(W - this.r, this.x));
         
         // 射击
