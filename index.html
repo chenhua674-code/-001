@@ -240,7 +240,7 @@ class Dragon {
         this.count = 100;
         this.r = 25;
         this.spd = 0.5 + wave * 0.05;
-        this.headX = W/2; this.headY = -3000; this.baseY = -3000;
+        this.headX = W/2; this.headY = -800; this.baseY = -800;
         this.angle = 0;
         this.alive = true;
         
@@ -250,7 +250,7 @@ class Dragon {
             let segHp = (i + 1) * (50 + wave * 30); // 第1段50+wave*30，第100段100*(50+wave*30)
             totalHp += segHp;
             this.segs.push({
-                x: W/2, y: -3000 + i*25,
+                x: W/2, y: -800 + i*25,
                 r: Math.max(8, this.r - i*0.3),
                 hp: segHp, maxHp: segHp,
                 hit: 0
@@ -267,7 +267,7 @@ class Dragon {
         this.angle += this.spd * 0.06;
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
         // 持续向下推进 (慢速)
-        this.baseY += 1.2;
+        this.baseY += 0.3;
         this.headY = this.baseY + Math.sin(G.time * 0.015) * 5;
 
         // 蛇身跟随 (链式物理)
