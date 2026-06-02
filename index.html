@@ -239,8 +239,8 @@ class Dragon {
         this.segs = [];
         this.count = 100;
         this.r = 25;
-        this.spd = 0.5 + wave * 0.05;
-        this.headX = W/2; this.headY = -2600; this.baseY = -2600;
+        this.spd = 0.35 + wave * 0.03;
+        this.headX = W/2; this.headY = -300; this.baseY = -300;
         this.angle = 0;
         this.alive = true;
         
@@ -250,7 +250,7 @@ class Dragon {
             let segHp = (i + 1) * (50 + wave * 30); // 第1段50+wave*30，第100段100*(50+wave*30)
             totalHp += segHp;
             this.segs.push({
-                x: W/2, y: -2600 + i*25,
+                x: W/2, y: -300 + i*3,
                 r: Math.max(8, this.r - i*0.3),
                 hp: segHp, maxHp: segHp,
                 hit: 0
