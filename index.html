@@ -240,9 +240,10 @@ class Dragon {
         this.count = 100;
         this.r = 25;
         this.spd = 0.35 + wave * 0.03;
-        this.headX = W/2; this.headY = -350; this.baseY = -350;
+        this.headX = W/2; this.headY = -600; this.baseY = -600;
         this.angle = 0;
         this.alive = true;
+        this.delay = 180; // 3秒延迟，页面加载完才开始动
         
         // 创建蛇身 - 链式物理，100段，血量递增
         let totalHp = 0;
@@ -250,7 +251,7 @@ class Dragon {
             let segHp = (i + 1) * (50 + wave * 30); // 第1段50+wave*30，第100段100*(50+wave*30)
             totalHp += segHp;
             this.segs.push({
-                x: W/2, y: -350 + i*3,
+                x: W/2, y: -600 + i*3,
                 r: Math.max(8, this.r - i*0.3),
                 hp: segHp, maxHp: segHp,
                 hit: 0
@@ -262,6 +263,9 @@ class Dragon {
     }
     update() {
         if (!this.alive) return;
+        
+        // 延迟结束后才开始移动
+        if (this.delay > 0) { this.delay--; return; }
         
         // 蛇头 AI (S型曲线 + 向下推进)
         this.angle += this.spd * 0.06;
