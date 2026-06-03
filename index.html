@@ -264,7 +264,7 @@ class Dragon {
         if (!this.alive) return;
         
         // 蛇头 AI (S型曲线 + 向下推进)
-        this.angle += this.spd * 0.12;
+        this.angle += this.spd * 0.024;
         this.headX = W/2 + Math.sin(this.angle) * (W * 0.45);
         // 持续向下推进 (缓慢)
         this.baseY += 0.5;
