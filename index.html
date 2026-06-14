@@ -99,9 +99,9 @@ class Player {
         this.x = W / 2; this.y = H - 80;
         this.r = 20;
         this.hp = 1000; this.maxHp = 1000;
-        this.dmg = 10;
+        this.dmg = 40;
         this.rate = 30; this.timer = 0;
-        this.xp = 0; this.xpNext = 200; this.lv = 1;
+        this.xp = 0; this.xpNext = 80; this.lv = 1;
         this.pierce = 0; this.bounce = 1; this.count = 1; this.speed = 1;
         this.crit = 0.05; this.critDmg = 1.5;
         this.buffs = {slow:false, burn:false, poison:false};
@@ -109,7 +109,7 @@ class Player {
     update() {
         // 移动跟随
         let dx = MX - this.x;
-        this.x += dx * 0.03;
+        this.x += dx * 0.12;
         this.x = Math.max(this.r, Math.min(W - this.r, this.x));
         
         // 射击
@@ -237,46 +237,41 @@ class Dragon {
     constructor(wave) {
         this.wave = wave;
         this.segs = [];
-        this.count = 100;
+        this.count = 30 + wave * 5;
         this.r = 25;
-        this.spd = 0.35 + wave * 0.03;
-        this.headX = W/2; this.headY = -80; this.baseY = -80;
+        this.spd = 1.5 + wave * 0.1;
+        this.headX = W/2; this.headY = 80;
         this.angle = 0;
         this.alive = true;
         
-        // 创建蛇身 - 链式物理，100段，血量递增
-        let totalHp = 0;
+        // 创建蛇身 - 链式物理
         for(let i=0; i<this.count; i++) {
-            let segHp = (i + 1) * (50 + wave * 30); // 第1段50+wave*30，第100段100*(50+wave*30)
-            totalHp += segHp;
             this.segs.push({
-                x: W/2, y: -300 + i*3,
+                x: W/2, y: 80 - i*12,
                 r: Math.max(8, this.r - i*0.3),
-                hp: segHp, maxHp: segHp,
+                hp: 100 + wave*50, maxHp: 100 + wave*50,
                 hit: 0
             });
         }
-        this.hp = totalHp;
-        this.maxHp = totalHp;
+        this.hp = this.count * (100 + wave*50);
+        this.maxHp = this.hp;
         updateUI();
     }
     update() {
         if (!this.alive) return;
         
-        // 蛇头 AI (S型曲线 + 向下推进)
-        this.angle += this.spd * 0.012;
-        this.headX = W/2 + Math.sin(this.angle) * (W * 0.45);
-        // 持续向下推进 (缓慢)
-        this.baseY += 0.1;
-        this.headY = this.baseY + Math.sin(G.time * 0.015) * 5;
+        // 蛇头 AI (正弦曲线 + 随机扰动)
+        this.angle += this.spd * 0.02;
+        this.headX = W/2 + Math.sin(this.angle) * (W * 0.35);
+        this.headY = 80 + Math.sin(G.time * 0.01) * 40;
 
         // 蛇身跟随 (链式物理)
         let last = {x: this.headX, y: this.headY};
         for (let s of this.segs) {
             let dx = last.x - s.x, dy = last.y - s.y;
             let d = Math.sqrt(dx*dx + dy*dy);
-            if (d > 25) {
-                let ratio = 25/d;
+            if (d > 12) {
+                let ratio = 12/d;
                 s.x = last.x - dx*ratio;
                 s.y = last.y - dy*ratio;
             }
@@ -284,12 +279,13 @@ class Dragon {
             if(s.hit > 0) s.hit--;
         }
 
-        // 碰撞玩家 - 碰到用户线就输
-        if (this.headY + this.r >= G.p.y) {
-            G.p.hp = 0;
-            G.shake = 15;
-            G.addNum(G.p.x, G.p.y, '突破!', true, '#f00');
-            gameover();
+        // 碰撞玩家
+        let dx = this.headX - G.p.x, dy = this.headY - G.p.y;
+        if (Math.sqrt(dx*dx + dy*dy) < this.r + G.p.r) {
+            G.p.hp -= 80;
+            G.shake = 10;
+            G.addNum(G.p.x, G.p.y, 80, true, '#f00');
+            if (G.p.hp <= 0) gameover();
             updateUI();
         }
     }
@@ -392,7 +388,7 @@ const SKILLS = [
     {name:'多发弹', icon:'🔥', desc:'攻击+1', fn:p=>p.count++},
     {name:'弹射+', icon:'💫', desc:'弹射次数+1', fn:p=>p.bounce++},
     {name:'穿透+', icon:'🎯', desc:'穿透+1', fn:p=>p.pierce++},
-    {name:'伤害+', icon:'⚔️', desc:'伤害+5', fn:p=>p.dmg+=5},
+    {name:'伤害+', icon:'⚔️', desc:'伤害+20', fn:p=>p.dmg+=20},
     {name:'射速+', icon:'⚡', desc:'间隔-10%', fn:p=>p.rate=Math.max(5, p.rate*0.9)},
     {name:'暴击+', icon:'🎲', desc:'暴击+5%', fn:p=>p.crit=Math.min(.8, p.crit+.05)},
     {name:'减速弹', icon:'❄️', desc:'击中减速', fn:p=>{p.buffs.slow=true;}},
@@ -446,8 +442,7 @@ function loop() {
         });
 
         // 升级
-        // XP 获取（降低频率，5帧+1）
-        G.p.xp += G.frame % 5 === 0 ? 1 : 0;
+        G.p.xp += 1;
         if (G.p.xp >= G.p.xpNext) {
             G.p.xp -= G.p.xpNext;
             G.p.lv++;
@@ -456,11 +451,6 @@ function loop() {
         }
 
         if(G.shake>0) G.shake*=.9;
-    }
-
-    // 蛇持续移动和碰撞检测（即使升级界面也不停）
-    if (G.dragon && G.dragon.alive && G.state !== 'dead') {
-        G.dragon.update();
     }
 
     // 渲染
